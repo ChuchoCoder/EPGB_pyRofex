@@ -11,6 +11,32 @@ allOptions = pd.DataFrame()
 oOpciones = pd.DataFrame()
 
 
+# Symbol transformation function for pyRofex integration
+def transform_symbol_for_pyrofex(raw_symbol):
+    """
+    Transform symbols for pyRofex compatibility:
+    - Add "MERV - XMEV - " prefix to all symbols
+    - Replace " - spot" suffix with " - CI"
+    - Preserve other suffixes (" - 24hs", etc.)
+    
+    Examples:
+    - "YPFD - 24hs" → "MERV - XMEV - YPFD - 24hs"
+    - "GGAL - spot" → "MERV - XMEV - GGAL - CI"
+    - "BBAR - CI" → "MERV - XMEV - BBAR - CI"
+    """
+    if not raw_symbol or not isinstance(raw_symbol, str):
+        return raw_symbol
+    
+    # Add MERV - XMEV - prefix
+    transformed = "MERV - XMEV - " + raw_symbol
+    
+    # Replace " - spot" suffix with " - CI"
+    if transformed.endswith(" - spot"):
+        transformed = transformed.replace(" - spot", " - CI")
+    
+    return transformed
+
+
 # Aca definimos el rango de datos que vamos a cargar en el Excel, en la hoja "Tickers". En este caso, le deje un rango desde la fila 2 a la 500.
 # En caso de superar la fila 500 en el excel para algun grupo, modificarlo en esta linea:   rng = shtTickers.range('Columna2:Columna500')
 
@@ -20,6 +46,15 @@ def getOptionsList():
     global allOptions
     rng = shtTickers.range('A2:A500').expand()
     oOpciones = rng.value
+    
+    # Apply pyRofex symbol transformation to all symbols
+    if isinstance(oOpciones, list):
+        oOpciones = [transform_symbol_for_pyrofex(symbol) for symbol in oOpciones if symbol is not None]
+    elif oOpciones is not None:
+        oOpciones = [transform_symbol_for_pyrofex(oOpciones)]
+    else:
+        oOpciones = []
+    
     allOptions = pd.DataFrame({'symbol': oOpciones},
                               columns=["symbol", "bid_size", "bid", "ask", "ask_size", "last",
                                        "change", "open", "high", "low", "previous_close", "turnover", "volume",
@@ -35,6 +70,15 @@ def getOptionsList():
 def getAccionesList():
     rng = shtTickers.range('C2:C500').expand()
     oAcciones = rng.value
+    
+    # Apply pyRofex symbol transformation to all symbols
+    if isinstance(oAcciones, list):
+        oAcciones = [transform_symbol_for_pyrofex(symbol) for symbol in oAcciones if symbol is not None]
+    elif oAcciones is not None:
+        oAcciones = [transform_symbol_for_pyrofex(oAcciones)]
+    else:
+        oAcciones = []
+    
     ACC = pd.DataFrame({'symbol' : oAcciones}, columns=["symbol", "bid_size", "bid", "ask", "ask_size", "last",
                                                                              "change", "open", "high", "low", "previous_close", "turnover", "volume",
                                                                              'operations', 'datetime'])
@@ -47,6 +91,15 @@ def getAccionesList():
 def getBonosList():
     rng = shtTickers.range('E2:E500').expand()
     oBonos = rng.value
+    
+    # Apply pyRofex symbol transformation to all symbols
+    if isinstance(oBonos, list):
+        oBonos = [transform_symbol_for_pyrofex(symbol) for symbol in oBonos if symbol is not None]
+    elif oBonos is not None:
+        oBonos = [transform_symbol_for_pyrofex(oBonos)]
+    else:
+        oBonos = []
+    
     Bonos = pd.DataFrame({'symbol' : oBonos}, columns=["symbol", "bid_size", "bid", "ask", "ask_size", "last",
                                                                              "change", "open", "high", "low", "previous_close", "turnover", "volume",
                                                                              'operations', 'datetime'])
@@ -59,6 +112,15 @@ def getBonosList():
 def getCedearsList():
     rng = shtTickers.range('G2:G500').expand()
     oCedears = rng.value
+    
+    # Apply pyRofex symbol transformation to all symbols
+    if isinstance(oCedears, list):
+        oCedears = [transform_symbol_for_pyrofex(symbol) for symbol in oCedears if symbol is not None]
+    elif oCedears is not None:
+        oCedears = [transform_symbol_for_pyrofex(oCedears)]
+    else:
+        oCedears = []
+    
     Cedears = pd.DataFrame({'symbol' : oCedears}, columns=["symbol", "bid_size", "bid", "ask", "ask_size", "last",
                                                                              "change", "open", "high", "low", "previous_close", "turnover", "volume",
                                                                              'operations', 'datetime'])
@@ -72,6 +134,14 @@ def getCedearsList():
 def getLetrasList():
     rng = shtTickers.range('I2:I500').expand()
     oLetras = rng.value
+    
+    # Apply pyRofex symbol transformation to all symbols
+    if isinstance(oLetras, list):
+        oLetras = [transform_symbol_for_pyrofex(symbol) for symbol in oLetras if symbol is not None]
+    elif oLetras is not None:
+        oLetras = [transform_symbol_for_pyrofex(oLetras)]
+    else:
+        oLetras = []
      
     Letras = pd.DataFrame({'symbol' : oLetras}, columns=["symbol", "bid_size", "bid", "ask", "ask_size", "last",
                                                                             "change", "open", "high", "low", "previous_close", "turnover", "volume",
@@ -86,6 +156,14 @@ def getLetrasList():
 def getONSList():
     rng = shtTickers.range('K2:K500').expand()
     oONS = rng.value
+    
+    # Apply pyRofex symbol transformation to all symbols
+    if isinstance(oONS, list):
+        oONS = [transform_symbol_for_pyrofex(symbol) for symbol in oONS if symbol is not None]
+    elif oONS is not None:
+        oONS = [transform_symbol_for_pyrofex(oONS)]
+    else:
+        oONS = []
      
     ONS = pd.DataFrame({'symbol' : oONS}, columns=["symbol", "bid_size", "bid", "ask", "ask_size", "last",
                                                                              "change", "open", "high", "low", "previous_close", "turnover", "volume",
@@ -100,6 +178,14 @@ def getONSList():
 def getPanelGeneralList():
     rng = shtTickers.range('M2:M500').expand()
     oPanelGeneral = rng.value
+    
+    # Apply pyRofex symbol transformation to all symbols
+    if isinstance(oPanelGeneral, list):
+        oPanelGeneral = [transform_symbol_for_pyrofex(symbol) for symbol in oPanelGeneral if symbol is not None]
+    elif oPanelGeneral is not None:
+        oPanelGeneral = [transform_symbol_for_pyrofex(oPanelGeneral)]
+    else:
+        oPanelGeneral = []
      
     PanelGeneral = pd.DataFrame({'symbol' : oPanelGeneral}, columns=["symbol", "bid_size", "bid", "ask", "ask_size", "last",
                                                                             "change", "open", "high", "low", "previous_close", "turnover", "volume",

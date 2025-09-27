@@ -1,50 +1,88 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+SYNC IMPACT REPORT
+==================
+Version change: Initial creation → 1.0.0
+Project: EPGB Options Market Data - Simple Python market data fetcher with Excel integration
+Date: 2025-09-27
+
+Modified Principles:
+- NEW: I. Simplicity First - Emphasizes vanilla Python, minimal dependencies
+- NEW: II. Excel Live Integration - xlwings integration with open Excel files
+- NEW: III. Real-time Data Updates - Continuous market data without blocking
+- NEW: IV. Configuration Transparency - Clear symbol lists and credentials
+- NEW: V. No Testing Overhead - Explicitly excludes unit testing requirements
+
+Added Sections:
+- Technical Constraints: Technology stack, performance standards
+- Development Workflow: Code organization principles
+
+Removed Sections:
+- N/A (initial creation)
+
+Templates Requiring Updates:
+⚠ plan-template.md - Contains TDD/testing references that conflict with Principle V
+⚠ spec-template.md - Generally compatible, no testing conflicts
+⚠ tasks-template.md - Heavy emphasis on TDD/testing phases conflicts with Principle V
+
+Follow-up TODOs:
+- Consider creating simplified task template for utility scripts
+- Update plan template Constitution Check section to reference actual principles
+- Document Excel integration patterns for future reference
+-->
+
+# EPGB Options Market Data Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Simplicity First
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Keep the script straightforward and maintainable. Use vanilla Python with minimal dependencies beyond essential libraries (xlwings, pyhomebroker, pandas). Avoid over-engineering solutions for this utility script. Clear, readable code is preferred over complex optimizations.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Excel Live Integration
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Excel files MUST remain updatable while open. Use xlwings for seamless integration with existing Excel workbooks. Maintain compatibility with .xlsb format. Preserve existing Excel structure and formatting when updating data.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Real-time Data Updates
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Market data updates MUST occur continuously without blocking the main execution thread. Handle API responses asynchronously where possible. Implement proper error handling for network failures and API rate limits.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Configuration Transparency
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+All symbol lists, broker credentials, and data ranges MUST be clearly defined and easily modifiable. Use the Tickers sheet for symbol configuration. Keep sensitive credentials clearly marked but separate from core logic.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. No Testing Overhead
+
+This utility script does NOT require unit tests or TDD practices. Focus on operational reliability through clear error handling and logging rather than formal testing frameworks. Simplicity over test coverage for this specific use case.
+
+## Technical Constraints
+
+### Technology Stack
+
+- Python 3.x with essential libraries: xlwings, pyhomebroker, pandas
+- Excel integration via xlwings (supports .xlsb format)
+- HomeBroker API for market data
+- Direct Excel file manipulation while files remain open
+
+### Performance Standards
+
+- Market data updates should complete within reasonable timeframes (typically under 30 seconds)
+- Excel updates must not interfere with user interaction
+- Memory usage should remain reasonable for continuous operation
+
+## Development Workflow
+
+### Code Organization
+
+- Main script (main_HM.py) handles execution flow and data orchestration
+- Helper module (Options_Helper_HM.py) manages Excel data extraction and symbol lists
+- Clear separation between data fetching, processing, and Excel updating
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development practices for the EPGB Options Market Data project. Changes to core principles require documentation and justification.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+All modifications must maintain compatibility with existing Excel workbooks and preserve the simplicity principle. Script reliability takes priority over feature completeness.
+
+For development guidance, refer to existing code comments and inline documentation rather than external testing frameworks.
+
+**Version**: 1.0.0 | **Ratified**: 2025-09-27 | **Last Amended**: 2025-09-27
