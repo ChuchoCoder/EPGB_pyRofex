@@ -1,7 +1,9 @@
 import xlwings as xw
+from pathlib import Path
 
 # Open the Excel file and check what's in the Tickers sheet
-wb = xw.Book('EPGB OC-DI - Python.xlsb')
+file_path = Path(__file__).resolve().parents[1] / 'data' / 'EPGB OC-DI - Python.xlsb'
+wb = xw.Book(str(file_path))
 shtTickers = wb.sheets('Tickers')
 
 print("🔍 Checking Tickers sheet content...")

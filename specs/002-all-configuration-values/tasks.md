@@ -31,32 +31,32 @@
 - No unit test tasks per Constitution Principle V
 
 ## Phase 3.1: Setup and Dependencies
-- [ ] T001 Install python-dotenv dependency via pip
-- [ ] T002 [P] Create .env.example template with all configuration variables
-- [ ] T003 [P] Create .gitignore patterns for credential protection
+- [x] T001 Install python-dotenv dependency via pip
+- [x] T002 [P] Create .env.example template with all configuration variables
+- [x] T003 [P] Create .gitignore patterns for credential protection
 
 ## Phase 3.2: Migration Utility Enhancement
-- [ ] T004 Enhance create_configs.py with dotenv integration support
-- [ ] T005 Add environment variable template generation to create_configs.py
-- [ ] T006 Add validation feedback to create_configs.py migration process
+- [x] T004 Enhance create_configs.py with dotenv integration support
+- [x] T005 Add environment variable template generation to create_configs.py
+- [x] T006 Add validation feedback to create_configs.py migration process
 
 ## Phase 3.3: Configuration Modules (Core Implementation)
-- [ ] T007 [P] Create excel_config.py with dotenv integration and validation
-- [ ] T008 [P] Create pyRofex_config.py with dotenv integration and validation
-- [ ] T009 [P] Add security warnings and file permission instructions to config files
+- [x] T007 [P] Create excel_config.py with dotenv integration and validation
+- [x] T008 [P] Create pyRofex_config.py with dotenv integration and validation
+- [x] T009 [P] Add security warnings and file permission instructions to config files
 
 ## Phase 3.4: Application Integration
-- [ ] T010 Refactor main_HM.py to import and use excel_config module
-- [ ] T011 Refactor main_HM.py to import and use pyRofex_config module  
-- [ ] T012 Refactor Options_Helper_HM.py to import and use excel_config module
-- [ ] T013 Add configuration validation calls to main_HM.py startup sequence
+- [x] T010 Refactor main_HM.py to import and use excel_config module
+- [x] T011 Refactor main_HM.py to import and use pyRofex_config module  
+- [x] T012 Refactor Options_Helper_HM.py to import and use excel_config module
+- [x] T013 Add configuration validation calls to main_HM.py startup sequence
 
 ## Phase 3.5: Operational Validation (Constitutional Alignment)
-- [ ] T014 [P] Validate configuration loading and environment variable precedence
-- [ ] T015 [P] Validate halt-on-failure behavior for invalid configuration
-- [ ] T016 [P] Validate profile switching via APP_ENV environment variable
-- [ ] T017 [P] Validate Excel file access through configuration system
-- [ ] T018 [P] Validate pyRofex API initialization through configuration system
+- [x] T014 [P] Validate configuration loading and environment variable precedence
+- [x] T015 [P] Validate halt-on-failure behavior for invalid configuration
+- [x] T016 [P] Validate profile switching via APP_ENV environment variable
+- [x] T017 [P] Validate Excel file access through configuration system
+- [x] T018 [P] Validate pyRofex API initialization through configuration system
 
 ## Dependencies
 - T001 (python-dotenv) blocks T007-T008 (config modules need dotenv)
