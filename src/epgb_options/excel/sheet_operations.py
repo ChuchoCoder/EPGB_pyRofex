@@ -10,7 +10,9 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import xlwings as xw
 
-from ..utils.helpers import clean_dataframe_for_excel, get_excel_safe_value
+from ..utils.helpers import (clean_dataframe_for_excel,
+                             clean_symbol_for_display, get_excel_safe_value,
+                             restore_symbol_prefix)
 from ..utils.logging import get_logger
 from ..utils.validation import validate_pandas_dataframe
 
@@ -123,14 +125,16 @@ class SheetOperations:
             return False
     
     def update_market_data_to_homebroker_sheet(self, df: pd.DataFrame, 
-                                               homebroker_sheet_name: str) -> bool:
+                                               homebroker_sheet_name: str,
+                                               cauciones_df: pd.DataFrame = None) -> bool:
         """
         Update market data to HomeBroker sheet with specific formatting.
         Uses bulk range update for maximum performance.
         
         Args:
-            df: DataFrame with market data
+            df: DataFrame with market data (excluding cauciones)
             homebroker_sheet_name: Name of the HomeBroker sheet
+            cauciones_df: Optional DataFrame with cauciones data (updates right table only)
             
         Returns:
             bool: True if successful, False otherwise
@@ -169,7 +173,9 @@ class SheetOperations:
                 for idx, cell_value in enumerate(symbols):
                     if cell_value and str(cell_value).strip():
                         # Row index is idx + 2 (skip header at row 1, and enumerate starts at 0)
-                        self._symbol_row_cache[cell_value] = idx + 2
+                        # Cell contains cleaned symbol (e.g., "GGAL - 24hs"), restore prefix for cache key
+                        full_symbol = restore_symbol_prefix(str(cell_value).strip())
+                        self._symbol_row_cache[full_symbol] = idx + 2
                 
                 logger.info(f"Built symbol row cache with {len(self._symbol_row_cache)} symbols from Excel")
                 
@@ -220,8 +226,9 @@ class SheetOperations:
                 
                 logger.info(f"✅ Bulk updated {len(updates_by_row)} instruments in range {range_address}")
             
-            # Update cauciones table on the right side (columns R-U)
-            self._update_cauciones_table(homebroker_sheet, df)
+            # Update cauciones table on the right side (columns R-U) using separate DataFrame
+            if cauciones_df is not None and not cauciones_df.empty:
+                self._update_cauciones_table(homebroker_sheet, cauciones_df)
             
             self.update_stats['updates_performed'] += 1
             return True
@@ -292,11 +299,14 @@ class SheetOperations:
             for i, symbol in enumerate(symbols):
                 row_num = start_row + i
                 
+                # Clean symbol for display (remove "MERV - XMEV - " prefix)
+                display_symbol = clean_symbol_for_display(symbol)
+                
                 # Prepare row: [symbol, bid_size, bid, ask, ask_size, last, change, open, high, low, previous_close, turnover, volume, operations, datetime]
-                row_data = [symbol] + [0] * 13 + ['']  # 13 numeric columns + 1 datetime column
+                row_data = [display_symbol] + [0] * 13 + ['']  # 13 numeric columns + 1 datetime column
                 symbol_data.append(row_data)
                 
-                # Update cache
+                # Update cache with ORIGINAL symbol (for lookups), but display cleaned version
                 self._symbol_row_cache[symbol] = row_num
             
             # Bulk write all symbols at once (much faster than individual writes)
@@ -320,9 +330,14 @@ class SheetOperations:
         - etc.
         
         Columns to update:
+        - R: Plazo (period like "1 día", "3 días" - not updated, already in Excel)
         - S: Vencimiento (maturity date = Today + X days)
-        - T: Tasa (rate as percentage, divided by 100)
-        - U: Monto $ (volume * last)
+        - T: Tasa (last price)
+        - U: Monto $ (volume)
+        - V: Monto Tomador (bid_size)
+        - W: Tasa Tomadora (bid)
+        - X: Tasa Colocadora (ask)
+        - Y: Monto Colocador (ask_size)
         
         Args:
             sheet: xlwings Sheet object
@@ -374,24 +389,58 @@ class SheetOperations:
                         # Calculate vencimiento (maturity date = today + num_days)
                         vencimiento = today + timedelta(days=num_days)
                         
-                        # Extract values
+                        # Extract values for cauciones table:
+                        # Column S: Vencimiento (maturity date)
+                        # Column T: Tasa (last price / 100)
+                        # Column U: Monto $ (volume)
+                        # Column V: Monto Tomador (bid_size)
+                        # Column W: Tasa Tomadora (bid / 100)
+                        # Column X: Tasa Colocadora (ask / 100)
+                        # Column Y: Monto Colocador (ask_size)
+                        
                         tasa_raw = get_excel_safe_value(row_data.get('last', 0))
-                        # Divide tasa by 100 to convert to decimal percentage for Excel
                         tasa = tasa_raw / 100 if tasa_raw else 0
                         
-                        volume = get_excel_safe_value(row_data.get('volume', 0))
-                        monto = tasa_raw * volume if tasa_raw and volume else 0
+                        monto = get_excel_safe_value(row_data.get('volume', 0))
+                        monto_tomador = get_excel_safe_value(row_data.get('bid_size', 0))
                         
-                        # Store update: (row, [vencimiento, tasa, monto])
-                        updates.append((row_num, [vencimiento, tasa, monto]))
+                        tasa_tomadora_raw = get_excel_safe_value(row_data.get('bid', 0))
+                        tasa_tomadora = tasa_tomadora_raw / 100 if tasa_tomadora_raw else 0
+                        
+                        tasa_colocadora_raw = get_excel_safe_value(row_data.get('ask', 0))
+                        tasa_colocadora = tasa_colocadora_raw / 100 if tasa_colocadora_raw else 0
+                        
+                        monto_colocador = get_excel_safe_value(row_data.get('ask_size', 0))
+                        
+                        # Store update: (row, [vencimiento, tasa, monto, monto_tomador, tasa_tomadora, tasa_colocadora, monto_colocador])
+                        updates.append((row_num, [vencimiento, tasa, monto, monto_tomador, tasa_tomadora, tasa_colocadora, monto_colocador]))
             
-            # Apply updates to Excel
+            # Apply updates to Excel using BULK UPDATE for better performance
             if updates:
-                for row_num, values in updates:
-                    # Update columns S (Vencimiento), T (Tasa), U (Monto $)
-                    sheet.range(f'S{row_num}:U{row_num}').value = values
+                # Sort by row number
+                updates.sort(key=lambda x: x[0])
                 
-                logger.debug(f"Updated {len(updates)} cauciones in table (rows 2-34, columns S-U)")
+                # Find min and max row numbers
+                min_row = updates[0][0]
+                max_row = updates[-1][0]
+                
+                # Create updates dictionary for quick lookup
+                updates_dict = {row_num: values for row_num, values in updates}
+                
+                # Build 2D array for bulk update (fill gaps with None to preserve existing data)
+                bulk_data = []
+                for row_idx in range(min_row, max_row + 1):
+                    if row_idx in updates_dict:
+                        bulk_data.append(updates_dict[row_idx])
+                    else:
+                        # Fill gaps with None to preserve existing Excel data
+                        bulk_data.append([None] * 7)  # 7 columns: S-Y
+                
+                # Single bulk write for all cauciones
+                range_address = f'S{min_row}:Y{max_row}'
+                sheet.range(range_address).value = bulk_data
+                
+                logger.debug(f"✅ Bulk updated {len(updates)} cauciones in range {range_address}")
             
         except Exception as e:
             logger.error(f"Error updating cauciones table: {e}")

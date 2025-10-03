@@ -35,6 +35,7 @@ class EPGBOptionsApp:
         # Data storage
         self.options_df = pd.DataFrame()
         self.everything_df = pd.DataFrame()
+        self.cauciones_df = pd.DataFrame()
         
         # Application state
         self.is_running = False
@@ -146,8 +147,11 @@ class EPGBOptionsApp:
             # Store options separately
             self.options_df = all_symbols.get('options', pd.DataFrame())
             
-            # Combine other securities
-            securities_to_combine = ['acciones', 'bonos', 'cedears', 'letras', 'ons', 'panel_general', 'cauciones']
+            # Store cauciones separately (they only go to the right-side table)
+            self.cauciones_df = all_symbols.get('cauciones', pd.DataFrame())
+            
+            # Combine other securities (exclude cauciones from main table)
+            securities_to_combine = ['acciones', 'bonos', 'cedears', 'letras', 'ons', 'panel_general']
             securities_dfs = [all_symbols.get(key, pd.DataFrame()) for key in securities_to_combine]
             valid_securities = [df for df in securities_dfs if not df.empty]
             
@@ -184,7 +188,7 @@ class EPGBOptionsApp:
             
             # Initialize WebSocket handler
             self.websocket_handler = WebSocketHandler()
-            self.websocket_handler.set_data_references(self.options_df, self.everything_df)
+            self.websocket_handler.set_data_references(self.options_df, self.everything_df, self.cauciones_df)
             self.websocket_handler.set_update_callback(self._on_data_update)
             
             # Initialize data processor
@@ -254,6 +258,19 @@ class EPGBOptionsApp:
                     
                 logger.info(f"Subscribed to {len(valid_symbols)} securities")
             
+            # Subscribe to cauciones (separate DataFrame, only updates right table)
+            if not self.cauciones_df.empty:
+                cauciones_symbols = list(self.cauciones_df.index)
+                success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(cauciones_symbols)
+                
+                if invalid_symbols:
+                    logger.warning(f"Skipped {len(invalid_symbols)} invalid caucion symbols")
+                    
+                if success and valid_symbols:
+                    logger.info(f"Subscribed to {len(valid_symbols)} cauciones")
+                else:
+                    logger.warning("No valid cauciones to subscribe")
+            
             log_connection_event("Market Data Subscription", "Started successfully")
             return True
             
@@ -266,10 +283,10 @@ class EPGBOptionsApp:
         try:
             logger.debug("Updating Excel with current data...")
             
-            # Update HomeBroker sheet with securities data
+            # Update HomeBroker sheet with securities data (excluding cauciones)
             if not self.everything_df.empty:
                 success = self.sheet_operations.update_market_data_to_homebroker_sheet(
-                    self.everything_df, SHEET_HOMEBROKER
+                    self.everything_df, SHEET_HOMEBROKER, self.cauciones_df
                 )
                 if not success:
                     logger.warning("Failed to update HomeBroker sheet")

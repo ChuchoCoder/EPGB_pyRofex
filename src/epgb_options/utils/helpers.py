@@ -90,6 +90,58 @@ def transform_symbol_for_pyrofex(raw_symbol: str) -> str:
     return f"MERV - XMEV - {symbol}"
 
 
+def clean_symbol_for_display(symbol: str) -> str:
+    """
+    Clean symbol for Excel display by removing "MERV - XMEV - " prefix.
+    
+    Args:
+        symbol: Symbol with pyRofex format (e.g., "MERV - XMEV - GGAL - 24hs")
+        
+    Returns:
+        str: Cleaned symbol for display (e.g., "GGAL - 24hs")
+        
+    Examples:
+        - "MERV - XMEV - GGAL - 24hs" → "GGAL - 24hs"
+        - "MERV - XMEV - PESOS - 3D" → "PESOS - 3D"
+        - "GGAL - 24hs" → "GGAL - 24hs" (unchanged if no prefix)
+    """
+    if not symbol or not isinstance(symbol, str):
+        return symbol
+    
+    # Remove "MERV - XMEV - " prefix if present
+    prefix = "MERV - XMEV - "
+    if symbol.startswith(prefix):
+        return symbol[len(prefix):]
+    
+    return symbol
+
+
+def restore_symbol_prefix(display_symbol: str) -> str:
+    """
+    Restore "MERV - XMEV - " prefix to a cleaned display symbol.
+    
+    Args:
+        display_symbol: Cleaned symbol from Excel (e.g., "GGAL - 24hs")
+        
+    Returns:
+        str: Full symbol with prefix (e.g., "MERV - XMEV - GGAL - 24hs")
+        
+    Examples:
+        - "GGAL - 24hs" → "MERV - XMEV - GGAL - 24hs"
+        - "PESOS - 3D" → "MERV - XMEV - PESOS - 3D"
+        - "MERV - XMEV - GGAL - 24hs" → "MERV - XMEV - GGAL - 24hs" (unchanged if already has prefix)
+    """
+    if not display_symbol or not isinstance(display_symbol, str):
+        return display_symbol
+    
+    # Skip if already has prefix
+    prefix = "MERV - XMEV - "
+    if display_symbol.startswith(prefix):
+        return display_symbol
+    
+    return f"{prefix}{display_symbol}"
+
+
 def clean_dataframe_for_excel(df: pd.DataFrame) -> pd.DataFrame:
     """
     Clean DataFrame for Excel output.

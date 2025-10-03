@@ -162,11 +162,18 @@ class pyRofexClient:
             raise RuntimeError("Client not initialized. Call initialize() first.")
             
         if entries is None:
+            # Request all available market data entries needed for Excel columns
             entries = [
-                pyRofex.MarketDataEntry.BIDS,
-                pyRofex.MarketDataEntry.OFFERS, 
-                pyRofex.MarketDataEntry.LAST,
-                pyRofex.MarketDataEntry.TRADE_VOLUME
+                pyRofex.MarketDataEntry.BIDS,               # Best bid (BI)
+                pyRofex.MarketDataEntry.OFFERS,             # Best offer (OF)
+                pyRofex.MarketDataEntry.LAST,               # Last trade (LA)
+                pyRofex.MarketDataEntry.OPENING_PRICE,      # Open price (OP)
+                pyRofex.MarketDataEntry.CLOSING_PRICE,      # Previous close (CL)
+                pyRofex.MarketDataEntry.HIGH_PRICE,         # High price (HI)
+                pyRofex.MarketDataEntry.LOW_PRICE,          # Low price (LO)
+                pyRofex.MarketDataEntry.TRADE_EFFECTIVE_VOLUME,  # Turnover (EV)
+                pyRofex.MarketDataEntry.NOMINAL_VOLUME,     # Volume (NV)
+                pyRofex.MarketDataEntry.TRADE_COUNT,        # Operations/number of trades (TC)
             ]
             
         try:
@@ -201,11 +208,18 @@ class pyRofexClient:
             logger.warning(f"Skipping {len(invalid_symbols)} invalid symbols: {invalid_symbols}")
             
         if entries is None:
+            # Subscribe to all available market data entries needed for Excel columns
             entries = [
-                pyRofex.MarketDataEntry.BIDS,
-                pyRofex.MarketDataEntry.OFFERS,
-                pyRofex.MarketDataEntry.LAST,
-                pyRofex.MarketDataEntry.TRADE_VOLUME
+                pyRofex.MarketDataEntry.BIDS,               # Best bid (BI)
+                pyRofex.MarketDataEntry.OFFERS,             # Best offer (OF)
+                pyRofex.MarketDataEntry.LAST,               # Last trade (LA)
+                pyRofex.MarketDataEntry.OPENING_PRICE,      # Open price (OP)
+                pyRofex.MarketDataEntry.CLOSING_PRICE,      # Previous close (CL)
+                pyRofex.MarketDataEntry.HIGH_PRICE,         # High price (HI)
+                pyRofex.MarketDataEntry.LOW_PRICE,          # Low price (LO)
+                pyRofex.MarketDataEntry.TRADE_EFFECTIVE_VOLUME,  # Turnover (EV)
+                pyRofex.MarketDataEntry.NOMINAL_VOLUME,     # Volume (NV)
+                pyRofex.MarketDataEntry.TRADE_COUNT,        # Operations/number of trades (TC)
             ]
             
         try:

@@ -177,15 +177,22 @@ class SymbolLoader:
             logger.debug("Creating cauciones list")
             
             # Create DataFrame with predefined cauciones
+            # Match the columns expected by Excel layout (B-O columns)
             cauciones_df = pd.DataFrame({
                 'symbol': self.CAUCIONES,
+                'bid_size': 0,
                 'bid': 0.0,
                 'ask': 0.0,
-                'bid_size': 0,
                 'ask_size': 0,
                 'last': 0.0,
                 'change': 0.0,
+                'open': 0.0,
+                'high': 0.0,
+                'low': 0.0,
+                'previous_close': 0.0,
+                'turnover': 0.0,
                 'volume': 0,
+                'operations': 0,
                 'datetime': pd.Timestamp.now()
             })
             
@@ -242,15 +249,22 @@ class SymbolLoader:
             transformed_securities = [transform_symbol_for_pyrofex(sec) for sec in valid_securities]
             
             # Create DataFrame with necessary columns for securities
+            # Match the columns expected by Excel layout (B-O columns)
             securities_df = pd.DataFrame({
                 'symbol': transformed_securities,
+                'bid_size': 0,
                 'bid': 0.0,
                 'ask': 0.0,
-                'bid_size': 0,
                 'ask_size': 0,
                 'last': 0.0,
                 'change': 0.0,
+                'open': 0.0,
+                'high': 0.0,
+                'low': 0.0,
+                'previous_close': 0.0,
+                'turnover': 0.0,
                 'volume': 0,
+                'operations': 0,
                 'datetime': pd.Timestamp.now()
             })
             

@@ -36,14 +36,16 @@ class WebSocketHandler:
         # Data storage references (will be set by main application)
         self.options_df = None
         self.everything_df = None
+        self.cauciones_df = None
         
         # Callbacks
         self.on_data_update = None  # Callback for when data is updated
     
-    def set_data_references(self, options_df: pd.DataFrame, everything_df: pd.DataFrame):
+    def set_data_references(self, options_df: pd.DataFrame, everything_df: pd.DataFrame, cauciones_df: pd.DataFrame = None):
         """Set references to main DataFrames."""
         self.options_df = options_df
         self.everything_df = everything_df
+        self.cauciones_df = cauciones_df if cauciones_df is not None else pd.DataFrame()
     
     def set_update_callback(self, callback: Callable):
         """Set callback function for data updates."""
@@ -123,7 +125,20 @@ class WebSocketHandler:
             logger.info(f"Market data fields: {market_data}")
         
         # Extract nested fields (pyRofex 0.5.0 uses nested structures)
-        # BIDS and OFFERS are arrays of price levels
+        # Field mapping from pyRofex WebSocket message:
+        # BI = BIDS (array of {price, size})
+        # OF = OFFERS (array of {price, size})
+        # LA = LAST trade ({price, size, date})
+        # OP = OPENING_PRICE (number or {price})
+        # CL = CLOSING_PRICE (number or {price})
+        # HI = HIGH_PRICE (number or {price})
+        # LO = LOW_PRICE (number or {price})
+        # EV = TRADE_EFFECTIVE_VOLUME (number) -> turnover column
+        # NV = NOMINAL_VOLUME (number) -> volume column
+        # TC = TRADE_COUNT (number) -> operations column (number of trades)
+        # SE = SETTLEMENT_PRICE (number or {price})
+        # OI = OPEN_INTEREST (number)
+        
         bids = market_data.get('BI', [])
         offers = market_data.get('OF', [])
         last_trade = market_data.get('LA', {})
@@ -132,21 +147,36 @@ class WebSocketHandler:
         best_bid = bids[0] if bids and isinstance(bids, list) else {}
         best_offer = offers[0] if offers and isinstance(offers, list) else {}
         
+        # Helper function to extract price from either number or dict
+        def extract_price(value):
+            if isinstance(value, dict):
+                return safe_float_conversion(value.get('price'))
+            return safe_float_conversion(value)
+        
+        # Extract key prices for change calculation
+        last_price = safe_float_conversion(last_trade.get('price') if isinstance(last_trade, dict) else None)
+        previous_close = extract_price(market_data.get('CL'))
+        
+        # Calculate change percentage: (last / previous_close) - 1
+        change = 0.0
+        if last_price and previous_close and previous_close != 0:
+            change = ((last_price / previous_close) - 1)
+
         # Create data row compatible with existing Excel structure
         data_row = {
             'bid_size': safe_int_conversion(best_bid.get('size') if isinstance(best_bid, dict) else None),
             'bid': safe_float_conversion(best_bid.get('price') if isinstance(best_bid, dict) else None),
             'ask': safe_float_conversion(best_offer.get('price') if isinstance(best_offer, dict) else None),
             'ask_size': safe_int_conversion(best_offer.get('size') if isinstance(best_offer, dict) else None),
-            'last': safe_float_conversion(last_trade.get('price') if isinstance(last_trade, dict) else None),
-            'change': safe_float_conversion(market_data.get('CH')) / 100 if market_data.get('CH') else 0.0,
-            'open': safe_float_conversion(market_data.get('OP')),
-            'high': safe_float_conversion(market_data.get('HI')),
-            'low': safe_float_conversion(market_data.get('LO')),
-            'previous_close': safe_float_conversion(market_data.get('CL')),
-            'turnover': safe_float_conversion(market_data.get('TV')),
-            'volume': safe_int_conversion(last_trade.get('size') if isinstance(last_trade, dict) else market_data.get('EV')),
-            'operations': safe_int_conversion(market_data.get('NV')),
+            'last': last_price,
+            'change': change,
+            'open': extract_price(market_data.get('OP')),
+            'high': extract_price(market_data.get('HI')),
+            'low': extract_price(market_data.get('LO')),
+            'previous_close': previous_close,
+            'turnover': safe_float_conversion(market_data.get('EV')),      # TRADE_EFFECTIVE_VOLUME
+            'volume': safe_int_conversion(market_data.get('NV')),          # NOMINAL_VOLUME
+            'operations': safe_int_conversion(market_data.get('TC')),      # TRADE_COUNT
             'datetime': pd.Timestamp.now()
         }
         
@@ -160,6 +190,8 @@ class WebSocketHandler:
         # Determine which DataFrame to update based on symbol characteristics
         if self._is_options_symbol(symbol):
             self._update_options_data(symbol, update_df)
+        elif self._is_caucion_symbol(symbol):
+            self._update_cauciones_data(symbol, update_df)
         else:
             self._update_securities_data(symbol, update_df)
         
@@ -169,6 +201,11 @@ class WebSocketHandler:
         """Determine if symbol represents an options contract."""
         options_indicators = ['CALL', 'PUT', 'C ', 'P ', 'OPTION']
         return any(indicator in symbol.upper() for indicator in options_indicators)
+    
+    def _is_caucion_symbol(self, symbol: str) -> bool:
+        """Determine if symbol represents a caucion (repo)."""
+        # Cauciones have format "MERV - XMEV - PESOS - XD" where X is the number of days
+        return 'PESOS' in symbol and symbol.split(' - ')[-1].endswith('D')
     
     def _update_options_data(self, symbol: str, update_df: pd.DataFrame):
         """Update options DataFrame."""
@@ -202,6 +239,20 @@ class WebSocketHandler:
                 logger.warning(f"Symbol '{symbol}' not found in everything_df.index. Index has {len(self.everything_df.index)} symbols.")
         else:
             logger.warning(f"Securities DataFrame not initialized for symbol: {symbol}")
+    
+    def _update_cauciones_data(self, symbol: str, update_df: pd.DataFrame):
+        """Update cauciones DataFrame (separate from main securities table).""" 
+        if self.cauciones_df is not None and not self.cauciones_df.empty:
+            # Use .loc[] assignment instead of .update() to ensure values are set
+            if symbol in self.cauciones_df.index:
+                for col in update_df.columns:
+                    if col in self.cauciones_df.columns:
+                        self.cauciones_df.loc[symbol, col] = update_df.loc[symbol, col]
+                logger.debug(f"Updated caucion: {symbol}")
+            else:
+                logger.warning(f"Caucion symbol '{symbol}' not found in cauciones_df.index")
+        else:
+            logger.warning(f"Cauciones DataFrame not initialized for symbol: {symbol}")
     
     def _handle_processing_error(self, error: Exception, message: Dict[str, Any]):
         """Handle errors during message processing."""
