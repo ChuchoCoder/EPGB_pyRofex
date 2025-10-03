@@ -320,8 +320,8 @@ class SheetOperations:
         - etc.
         
         Columns to update:
-        - S: Vencimiento (datetime)
-        - T: Tasa (last price / rate)
+        - S: Vencimiento (maturity date = Today + X days)
+        - T: Tasa (rate as percentage, divided by 100)
         - U: Monto $ (volume * last)
         
         Args:
@@ -329,12 +329,17 @@ class SheetOperations:
             df: DataFrame with market data
         """
         try:
+            from datetime import datetime, timedelta
+
             # Build mapping from days to pyRofex symbols
             # Extract only caucion symbols from DataFrame
             caucion_symbols = [sym for sym in df.index if 'PESOS' in sym and 'D' in sym.split(' - ')[-1]]
             
             if not caucion_symbols:
                 return  # No cauciones to update
+            
+            # Get today's date
+            today = datetime.now().date()
             
             # Mapping from period (e.g., "3D") to row number in cauciones table
             period_to_row = {}
@@ -356,18 +361,29 @@ class SheetOperations:
                     if row_num is None:
                         continue
                     
+                    # Extract number of days from period (e.g., "3D" -> 3)
+                    try:
+                        num_days = int(period.rstrip('D'))
+                    except ValueError:
+                        continue
+                    
                     # Get data for this symbol
                     if symbol in df.index:
                         row_data = df.loc[symbol]
                         
+                        # Calculate vencimiento (maturity date = today + num_days)
+                        vencimiento = today + timedelta(days=num_days)
+                        
                         # Extract values
-                        tasa = get_excel_safe_value(row_data.get('last', 0))
+                        tasa_raw = get_excel_safe_value(row_data.get('last', 0))
+                        # Divide tasa by 100 to convert to decimal percentage for Excel
+                        tasa = tasa_raw / 100 if tasa_raw else 0
+                        
                         volume = get_excel_safe_value(row_data.get('volume', 0))
-                        monto = tasa * volume if tasa and volume else 0
-                        datetime_val = get_excel_safe_value(row_data.get('datetime', ''))
+                        monto = tasa_raw * volume if tasa_raw and volume else 0
                         
                         # Store update: (row, [vencimiento, tasa, monto])
-                        updates.append((row_num, [datetime_val, tasa, monto]))
+                        updates.append((row_num, [vencimiento, tasa, monto]))
             
             # Apply updates to Excel
             if updates:
