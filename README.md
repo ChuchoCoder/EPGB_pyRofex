@@ -12,18 +12,21 @@ A Python application for fetching and managing options market data with Excel in
 
 ### Installation
 
-#### Option 1: Automatic Setup (Recommended)
+#### Option 1: Modern Editable Install (Recommended)
 
 ```bash
 # Clone the repository
 git clone https://github.com/ChuchoCoder/EPGB_pyRofex.git
 cd EPGB_pyRofex
 
-# Run automatic setup
-python setup.py
+# Create & activate a virtual environment (Windows)
+python -m venv .venv
+.venv\\Scripts\\activate
 
-# For development setup
-python setup.py --dev
+# Install package in editable mode with optional dev extras
+pip install -e .
+# Or include development tooling
+pip install -e ".[dev]"
 ```
 
 #### Option 2: Manual Installation
@@ -45,22 +48,12 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt
 ```
 
-#### Option 3: Modern pip installation
-
-```bash
-# Install in editable mode with pyproject.toml
-pip install -e .
-
-# Or with development dependencies
-pip install -e ".[dev]"
-```
-
 ### Configuration Setup
 
 1. **Copy environment template:**
 
    ```bash
-   copy .env.example .env
+   copy data\.env.example .env
    ```
 
 2. **Edit `.env` file with your credentials:**
@@ -71,7 +64,7 @@ pip install -e ".[dev]"
    PYROFEX_ACCOUNT=your_actual_account
    ```
 
-3. **Run configuration migration:**
+3. **(Optional) Generate missing config modules:**
 
    ```bash
    python tools/create_configs.py
@@ -80,14 +73,45 @@ pip install -e ".[dev]"
 ### Running the Application
 
 ```bash
-# Run main application
-python main_HM.py
+# Run via installed console script
+epgb-options
 
-# Or using setup commands
-python setup.py run
-# Windows PowerShell:
-.\setup.ps1 run
+# Or module form (equivalent)
+python -m epgb_options.main
 ```
+
+Add `--help` for future CLI flags (planned extension point).
+
+### Debugging in VS Code
+
+The project includes pre-configured debug configurations in `.vscode/launch.json`:
+
+1. **Python: EPGB Options (Main)** - Debug the main application (looks for `.env` in root)
+2. **Python: EPGB Options (data/.env)** - Debug using `.env` from `data/` folder
+3. **Python: Validation Script** - Debug the validation tool
+4. **Python: Create Configs** - Debug config generation
+
+**Quick Start:**
+
+1. Open the project in VS Code
+2. Set breakpoints in your code (click left of line numbers)
+3. Press `F5` or go to Run → Start Debugging
+4. Select "Python: EPGB Options (Main)" from the dropdown
+
+**Debug Features:**
+
+- Step through code line by line (`F10` = step over, `F11` = step into)
+- Inspect variables in the Variables pane
+- Watch expressions in the Watch pane
+- View call stack and breakpoints
+- Use Debug Console for runtime evaluation
+
+**Tips:**
+
+- Set breakpoints in `src/epgb_options/main.py` initialization
+- Check `api_client.py` for API connection issues
+- Monitor `websocket_handler.py` for real-time data flow
+- Use conditional breakpoints (right-click breakpoint) for specific scenarios
 
 ## 📦 Dependency Management
 
@@ -106,7 +130,7 @@ This project uses modern Python dependency management with multiple options:
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| pyRofex | ≥1.12.0 | Market data API integration |
+| pyRofex | ≥0.5.0 | Market data API integration |
 | xlwings | ≥0.31.0 | Excel integration |
 | pandas | ≥2.0.0 | Data manipulation |
 | python-dotenv | ≥1.0.0 | Environment variable management |
@@ -122,24 +146,35 @@ This project uses modern Python dependency management with multiple options:
 
 ## 🛠️ Development Commands
 
-### Using setup.py
+### Core Dev Tasks (Modern Way)
 
 ```bash
-python setup.py --check      # Check environment
-python setup.py --upgrade    # Upgrade dependencies
-python setup.py --clean      # Clean environment
+pip install -e ".[dev]"   # Install dev dependencies
+ruff check .               # Lint
+ruff format .              # Auto-format
+mypy src/epgb_options      # Type check
+pytest                     # (When tests added)
 ```
 
-### Using PowerShell (Windows)
+\n### (Legacy) setup.py helpers
+Retained temporarily; will be removed in a future cleanup.
+
+```bash
+python setup.py --check
+python setup.py --dev
+```
+
+\n### PowerShell Convenience (Optional)
 
 ```powershell
-.\setup.ps1 install-dev       # Install development dependencies
-.\setup.ps1 lint             # Run linting
-.\setup.ps1 format           # Format code
-.\setup.ps1 type-check       # Run type checking
+.# Activate environment first
+.venv\Scripts\activate
+ruff check .
+ruff format .
+mypy src/epgb_options
 ```
 
-### Using Make (Unix/Linux/Mac)
+\n### Using Make (Unix/Linux/Mac)
 
 ```bash
 make install-dev             # Install development dependencies
@@ -156,8 +191,8 @@ EPGB_pyRofex/
 ├── pyproject.toml          # Modern project configuration
 ├── requirements.txt        # Core dependencies
 ├── requirements-dev.txt    # Development dependencies
-├── setup.py               # Automated setup script
-├── setup.ps1              # PowerShell setup script
+├── setup.py.backup        # (Legacy) transitional script (avoid)
+├── setup.ps1              # (Optional) legacy helper
 ├── Makefile               # Unix command shortcuts
 │
 ├── src/epgb_options/      # Main application package
@@ -203,90 +238,87 @@ EPGB_pyRofex/
 │   └── specs/          # Feature specifications
 │
 ├── .gitignore          # Git ignore patterns
-├── main_HM.py          # Legacy main application (deprecated)
-└── Options_Helper_HM.py # Legacy helper utilities (deprecated)
+└── README.md           # Project documentation
 ```
 
-## ⚙️ Configuration Management
+> Legacy monolithic files (`main_HM.py`, `Options_Helper_HM.py`) were removed after migration.
+
+\n## ⚙️ Configuration Management
 
 The application uses a modern configuration system:
 
-1. **Configuration Files:**
-   - `excel_config.py` - Excel-related settings
-   - `pyRofex_config.py` - API credentials and URLs
+1. **Configuration Modules (generated / maintained):**
+   - `src/epgb_options/config/excel_config.py`
+   - `src/epgb_options/config/pyrofex_config.py`
 
 2. **Environment Variables:**
    - `.env` file for local development
    - Environment variables override config files
 
 3. **Security Features:**
-   - Credential validation at startup
-   - File permission warnings
-   - Git ignore patterns for sensitive files
+   - Startup credential validation with descriptive failures
+   - `.env` excluded via `.gitignore`
+   - No plaintext password defaults retained
 
-## 🔧 Environment Setup Validation
+\n## 🔧 Environment Setup Validation
 
 Check your setup with:
 
 ```bash
-python setup.py --check
+python tools/validate_system.py
 ```
 
-This will verify:
+Validates:
 
-- ✅ Python version compatibility
-- ✅ Virtual environment status
-- ✅ All dependencies installed
-- ✅ Configuration files present
+- ✅ Imports & package structure
+- ✅ Entry point availability (`epgb-options`)
+- ✅ Config modules + environment template presence
 
-## 🎯 Usage Examples
+\n## 🎯 Usage Examples
 
 ### Basic Usage
 
 ```bash
-# 1. Setup environment
-python setup.py --dev
+# 1. Install (dev mode)
+pip install -e ".[dev]"
 
-# 2. Configure credentials
-# Edit .env file with your credentials
+# 2. Copy & edit environment
+copy data\.env.example .env
+notepad .env
 
-# 3. Run application
-python main_HM.py
+# 3. (Optional) generate config stubs
+python tools/create_configs.py
+
+# 4. Run
+epgb-options
 ```
 
 ### Development Workflow
 
 ```bash
-# 1. Install development tools
-python setup.py --dev
-
-# 2. Format and lint code
-.\setup.ps1 format
-.\setup.ps1 lint
-
-# 3. Type checking
-.\setup.ps1 type-check
-
-# 4. Run application
-.\setup.ps1 run
+pip install -e ".[dev]"
+ruff check .
+ruff format .
+mypy src/epgb_options
+epgb-options
 ```
 
-## 🔒 Security Considerations
+\n## 🔒 Security Considerations
 
 - **Never commit `.env` files** - Contains sensitive credentials
 - **Set appropriate file permissions** on configuration files
 - **Use environment variables** in production deployments
 - **Regularly rotate API credentials**
 
-## 📋 Troubleshooting
+\n## 📋 Troubleshooting
 
 ### Common Issues
 
 1. **Import errors:**
 
    ```bash
-   python setup.py --check
-   pip install -r requirements.txt
+   pip install -e .
+   pip install -e ".[dev]"
    ```
 
 2. **Excel connection issues:**
@@ -301,10 +333,10 @@ python setup.py --dev
 
 ### Getting Help
 
-1. **Check system validation:**
+1. **Run validation suite:**
 
    ```bash
-   python validate_system.py
+   python tools/validate_system.py
    ```
 
 2. **Run configuration migration:**
@@ -319,12 +351,12 @@ python setup.py --dev
    python setup.py --upgrade
    ```
 
-## 🤝 Contributing
+\n## 🤝 Contributing
 
 1. **Setup development environment:**
 
    ```bash
-   python setup.py --dev
+   pip install -e ".[dev]"
    ```
 
 2. **Install pre-commit hooks:**
@@ -336,7 +368,9 @@ python setup.py --dev
 3. **Run quality checks:**
 
    ```bash
-   .\setup.ps1 quality
+   ruff check .
+   ruff format .
+   mypy src/epgb_options
    ```
 
 ## 📄 License
@@ -347,9 +381,7 @@ This project is licensed under the MIT License.
 
 For issues and questions:
 
-- Check the troubleshooting section above
-- Run `python setup.py --check` to validate your setup
-- Review configuration files for proper setup
-- Ensure all credentials are properly configured
- 
- 
+- Run `python tools/validate_system.py` to validate setup
+- Review `src/epgb_options/config/` modules
+- Ensure `.env` is present with populated credentials
+- Confirm virtual environment is active

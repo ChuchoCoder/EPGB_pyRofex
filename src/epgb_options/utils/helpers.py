@@ -4,9 +4,12 @@ General helper utilities for EPGB Options.
 This module provides general utility functions used across the application.
 """
 
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Any, Optional
+
+import numpy as np
 import pandas as pd
+
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -129,7 +132,7 @@ def get_excel_safe_value(value: Any) -> Any:
         return 0
     
     if isinstance(value, (int, float)):
-        if pd.isna(value) or pd.isinf(value):
+        if pd.isna(value) or np.isinf(value):
             return 0
         return value
     

@@ -5,12 +5,16 @@ This module handles WebSocket connections, message processing, and error handlin
 for real-time market data from pyRofex.
 """
 
-import pandas as pd
 from datetime import datetime
-from typing import Dict, Any, Callable, Optional
-from ..utils.logging import get_logger, log_connection_event, log_market_data_event
-from ..utils.validation import validate_market_data, safe_float_conversion, safe_int_conversion
+from typing import Any, Callable, Dict, Optional
+
+import pandas as pd
+
 from ..utils.helpers import get_excel_safe_value
+from ..utils.logging import (get_logger, log_connection_event,
+                             log_market_data_event)
+from ..utils.validation import (safe_float_conversion, safe_int_conversion,
+                                validate_market_data)
 
 logger = get_logger(__name__)
 
@@ -74,6 +78,10 @@ class WebSocketHandler:
         self.connection_stats['messages_received'] += 1
         self.connection_stats['last_message_time'] = datetime.now()
         
+        # DEBUG: Log raw message structure for first few messages
+        if self.connection_stats['messages_received'] <= 3:
+            logger.info(f"RAW MESSAGE #{self.connection_stats['messages_received']}: {message}")
+        
         try:
             # Validate message structure
             if not validate_market_data(message):
@@ -109,23 +117,42 @@ class WebSocketHandler:
         # Extract market data fields
         market_data = message.get('marketData', {})
         
+        # DEBUG: Log market data extraction for first symbol
+        if self.connection_stats['messages_processed'] < 2:
+            logger.info(f"Processing symbol: {symbol}")
+            logger.info(f"Market data fields: {market_data}")
+        
+        # Extract nested fields (pyRofex 0.5.0 uses nested structures)
+        # BIDS and OFFERS are arrays of price levels
+        bids = market_data.get('BI', [])
+        offers = market_data.get('OF', [])
+        last_trade = market_data.get('LA', {})
+        
+        # Extract best bid/offer (first level in the book)
+        best_bid = bids[0] if bids and isinstance(bids, list) else {}
+        best_offer = offers[0] if offers and isinstance(offers, list) else {}
+        
         # Create data row compatible with existing Excel structure
         data_row = {
-            'bid_size': safe_int_conversion(market_data.get('BI_size')),
-            'bid': safe_float_conversion(market_data.get('BI')),
-            'ask': safe_float_conversion(market_data.get('OF')),
-            'ask_size': safe_int_conversion(market_data.get('OF_size')),
-            'last': safe_float_conversion(market_data.get('LA')),
-            'change': safe_float_conversion(market_data.get('CH')) / 100,  # Convert to decimal
+            'bid_size': safe_int_conversion(best_bid.get('size') if isinstance(best_bid, dict) else None),
+            'bid': safe_float_conversion(best_bid.get('price') if isinstance(best_bid, dict) else None),
+            'ask': safe_float_conversion(best_offer.get('price') if isinstance(best_offer, dict) else None),
+            'ask_size': safe_int_conversion(best_offer.get('size') if isinstance(best_offer, dict) else None),
+            'last': safe_float_conversion(last_trade.get('price') if isinstance(last_trade, dict) else None),
+            'change': safe_float_conversion(market_data.get('CH')) / 100 if market_data.get('CH') else 0.0,
             'open': safe_float_conversion(market_data.get('OP')),
             'high': safe_float_conversion(market_data.get('HI')),
             'low': safe_float_conversion(market_data.get('LO')),
             'previous_close': safe_float_conversion(market_data.get('CL')),
             'turnover': safe_float_conversion(market_data.get('TV')),
-            'volume': safe_int_conversion(market_data.get('EV')),
+            'volume': safe_int_conversion(last_trade.get('size') if isinstance(last_trade, dict) else market_data.get('EV')),
             'operations': safe_int_conversion(market_data.get('NV')),
             'datetime': pd.Timestamp.now()
         }
+        
+        # DEBUG: Log extracted values
+        if self.connection_stats['messages_processed'] < 2:
+            logger.info(f"Extracted data row: {data_row}")
         
         # Create DataFrame for this update
         update_df = pd.DataFrame([data_row], index=[symbol])
@@ -150,14 +177,29 @@ class WebSocketHandler:
             update_df = update_df.rename(columns={"bid_size": "bidsize", "ask_size": "asksize"})
             update_df = update_df.drop(['expiration', 'strike', 'kind'], axis=1, errors='ignore')
             
-            self.options_df.update(update_df)
+            # Use .loc[] assignment instead of .update() to ensure values are set
+            if symbol in self.options_df.index:
+                for col in update_df.columns:
+                    if col in self.options_df.columns:
+                        self.options_df.loc[symbol, col] = update_df.loc[symbol, col]
         else:
             logger.warning(f"Options DataFrame not initialized for symbol: {symbol}")
     
     def _update_securities_data(self, symbol: str, update_df: pd.DataFrame):
         """Update securities DataFrame.""" 
         if self.everything_df is not None and not self.everything_df.empty:
-            self.everything_df.update(update_df)
+            # Use .loc[] assignment instead of .update() to ensure values are set
+            if symbol in self.everything_df.index:
+                for col in update_df.columns:
+                    if col in self.everything_df.columns:
+                        old_value = self.everything_df.loc[symbol, col]
+                        new_value = update_df.loc[symbol, col]
+                        self.everything_df.loc[symbol, col] = new_value
+                        # DEBUG: Log first update to confirm write
+                        if self.connection_stats['messages_processed'] <= 3 and col in ['bid', 'ask', 'last']:
+                            logger.info(f"DataFrame UPDATE: {symbol} {col}: {old_value} → {new_value}")
+            else:
+                logger.warning(f"Symbol '{symbol}' not found in everything_df.index. Index has {len(self.everything_df.index)} symbols.")
         else:
             logger.warning(f"Securities DataFrame not initialized for symbol: {symbol}")
     
@@ -194,6 +236,8 @@ class WebSocketHandler:
             logger.error("Authentication error - check credentials")
         elif "connection" in str(error).lower():
             logger.error("Connection error - check network connectivity")
+        elif "product" in str(error['description']).lower():
+            logger.error("Product error - " + error['description'])
         else:
             logger.error("Unknown WebSocket error")
     

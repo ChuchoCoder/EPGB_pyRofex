@@ -5,7 +5,9 @@ This module handles the pyRofex API connection and configuration.
 """
 
 import pyRofex
-from ..config.pyrofex_config import ENVIRONMENT, API_URL, WS_URL, USER, PASSWORD, ACCOUNT
+
+from ..config.pyrofex_config import (ACCOUNT, API_URL, ENVIRONMENT, PASSWORD,
+                                     USER, WS_URL)
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -50,7 +52,7 @@ class pyRofexClient:
                 pyRofex.MarketDataEntry.BIDS,
                 pyRofex.MarketDataEntry.OFFERS, 
                 pyRofex.MarketDataEntry.LAST,
-                pyRofex.MarketDataEntry.VOLUME
+                pyRofex.MarketDataEntry.TRADE_VOLUME
             ]
             
         try:
@@ -69,7 +71,7 @@ class pyRofexClient:
                 pyRofex.MarketDataEntry.BIDS,
                 pyRofex.MarketDataEntry.OFFERS,
                 pyRofex.MarketDataEntry.LAST,
-                pyRofex.MarketDataEntry.VOLUME
+                pyRofex.MarketDataEntry.TRADE_VOLUME
             ]
             
         try:
@@ -81,28 +83,35 @@ class pyRofexClient:
             return False
     
     def set_market_data_handler(self, handler):
-        """Set the market data message handler."""
+        """Register (add) the market data message handler (pyRofex 0.5.x API)."""
         if not callable(handler):
             raise ValueError("Handler must be callable")
-            
-        pyRofex.set_market_data_handler(handler)
-        logger.info("Market data handler set")
+        # pyRofex 0.5.0 provides add_websocket_market_data_handler
+        if hasattr(pyRofex, 'add_websocket_market_data_handler'):
+            pyRofex.add_websocket_market_data_handler(handler)
+            logger.info("Market data handler registered")
+        else:
+            raise AttributeError("pyRofex module missing add_websocket_market_data_handler")
     
     def set_error_handler(self, handler):
-        """Set the error message handler.""" 
+        """Register (add) the websocket error handler.""" 
         if not callable(handler):
             raise ValueError("Handler must be callable")
-            
-        pyRofex.set_error_handler(handler)
-        logger.info("Error handler set")
+        if hasattr(pyRofex, 'add_websocket_error_handler'):
+            pyRofex.add_websocket_error_handler(handler)
+            logger.info("Error handler registered")
+        else:
+            logger.warning("pyRofex missing add_websocket_error_handler; handler not set")
     
     def set_exception_handler(self, handler):
-        """Set the exception handler."""
+        """Set the websocket exception handler (name differs in 0.5.x)."""
         if not callable(handler):
             raise ValueError("Handler must be callable")
-            
-        pyRofex.set_exception_handler(handler) 
-        logger.info("Exception handler set")
+        if hasattr(pyRofex, 'set_websocket_exception_handler'):
+            pyRofex.set_websocket_exception_handler(handler)
+            logger.info("Exception handler set")
+        else:
+            logger.warning("pyRofex missing set_websocket_exception_handler; exception handler not set")
     
     def close_connection(self):
         """Close the pyRofex connection."""

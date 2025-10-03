@@ -5,18 +5,17 @@ This module provides the main application logic and coordinates
 all the different components.
 """
 
-import pandas as pd
 import time
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
-from .config import (
-    EXCEL_FILE, EXCEL_PATH, SHEET_HOMEBROKER, SHEET_TICKERS,
-    validate_excel_config, validate_pyRofex_config
-)
-from .market_data import pyRofexClient, WebSocketHandler, DataProcessor
-from .excel import WorkbookManager, SymbolLoader, SheetOperations
-from .utils import setup_logging, get_logger, log_connection_event
+import pandas as pd
+
+from .config import (EXCEL_FILE, EXCEL_PATH, SHEET_HOMEBROKER, SHEET_TICKERS,
+                     validate_excel_config, validate_pyRofex_config)
+from .excel import SheetOperations, SymbolLoader, WorkbookManager
+from .market_data import DataProcessor, WebSocketHandler, pyRofexClient
+from .utils import get_logger, log_connection_event, setup_logging
 
 logger = get_logger(__name__)
 
@@ -282,6 +281,11 @@ class EPGBOptionsApp:
             
             self.is_running = True
             logger.info("✅ Application running - market data streaming started")
+            
+            # Wait for initial market data to populate (give WebSocket time to receive first batch)
+            logger.info("Waiting for initial market data to populate...")
+            time.sleep(2)
+            logger.info("Starting Excel updates")
             
             # Main application loop
             try:

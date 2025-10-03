@@ -27,10 +27,18 @@ PYROFEX_* values in your .env file and leaving defaults as placeholders.
 """
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Robust .env loading: try project root, then data/.env fallback
+_ROOT = Path(__file__).resolve().parents[3]
+_loaded = load_dotenv()  # default: looks in CWD / upward
+if not _loaded:
+    # Explicitly try root and data/.env
+    for candidate in ( _ROOT / '.env', _ROOT / 'data' / '.env'):
+        if candidate.exists():
+            load_dotenv(dotenv_path=candidate)
+            break
 
 # pyRofex API Configuration - Environment variables override these defaults
 ENVIRONMENT = os.getenv('PYROFEX_ENVIRONMENT', 'LIVE')

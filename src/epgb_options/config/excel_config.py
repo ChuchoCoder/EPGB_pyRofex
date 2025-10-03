@@ -11,10 +11,17 @@ Windows: icacls excel_config.py /grant:r %USERNAME%:F /inheritance:r
 """
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Robust .env loading: try project root, then data/.env fallback
+_ROOT = Path(__file__).resolve().parents[3]
+_loaded = load_dotenv()
+if not _loaded:
+    for candidate in (_ROOT / '.env', _ROOT / 'data' / '.env'):
+        if candidate.exists():
+            load_dotenv(dotenv_path=candidate)
+            break
 
 # Excel Configuration - Environment variables override these defaults
 EXCEL_FILE = os.getenv('EXCEL_FILE', 'EPGB OC-DI - Python.xlsb')

@@ -5,11 +5,13 @@ This module loads financial instrument symbols from Excel sheets
 and transforms them for pyRofex compatibility.
 """
 
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
-from typing import List, Dict, Any, Optional
 import xlwings as xw
-from ..utils.logging import get_logger
+
 from ..utils.helpers import transform_symbol_for_pyrofex
+from ..utils.logging import get_logger
 from ..utils.validation import validate_excel_range_data
 
 logger = get_logger(__name__)
@@ -31,8 +33,20 @@ class SymbolLoader:
     
     # Predefined cauciones (repos) list
     CAUCIONES = [
-        "MERV - XMEV - DICA - 1D - CI", "MERV - XMEV - DICA - 3D - CI", 
-        "MERV - XMEV - DICA - 7D - CI", "MERV - XMEV - DICA - 30D - CI"
+        #"MERV - XMEV - PESOS - 1D",
+        #"MERV - XMEV - PESOS - 2D",
+        "MERV - XMEV - PESOS - 3D",
+        "MERV - XMEV - PESOS - 4D",
+        "MERV - XMEV - PESOS - 5D",
+        "MERV - XMEV - PESOS - 6D",
+        #"MERV - XMEV - PESOS - 7D",
+        #"MERV - XMEV - PESOS - 8D",
+        #"MERV - XMEV - PESOS - 9D",
+        "MERV - XMEV - PESOS - 10D",
+        "MERV - XMEV - PESOS - 11D",
+        "MERV - XMEV - PESOS - 12D",
+        "MERV - XMEV - PESOS - 13D",
+        "MERV - XMEV - PESOS - 14D",
     ]
     
     def __init__(self, tickers_sheet: xw.Sheet):

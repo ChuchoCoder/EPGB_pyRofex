@@ -5,11 +5,13 @@ This module handles reading from and writing to Excel sheets,
 including data updates and formatting.
 """
 
+from typing import Any, Dict, List, Optional, Union
+
 import pandas as pd
 import xlwings as xw
-from typing import Any, Dict, List, Optional, Union
+
+from ..utils.helpers import clean_dataframe_for_excel, get_excel_safe_value
 from ..utils.logging import get_logger
-from ..utils.helpers import get_excel_safe_value, clean_dataframe_for_excel
 from ..utils.validation import validate_pandas_dataframe
 
 logger = get_logger(__name__)
@@ -124,6 +126,7 @@ class SheetOperations:
                                                homebroker_sheet_name: str) -> bool:
         """
         Update market data to HomeBroker sheet with specific formatting.
+        Uses bulk range update for maximum performance.
         
         Args:
             df: DataFrame with market data
@@ -139,22 +142,67 @@ class SheetOperations:
             
             logger.debug(f"Updating market data to {homebroker_sheet_name}")
             
+            # DEBUG: Log DataFrame state for first few updates
+            if self.update_stats['updates_performed'] < 2:
+                sample_symbols = df.index[:3].tolist()
+                logger.info(f"DataFrame sample (first 3 symbols): {sample_symbols}")
+                for sym in sample_symbols:
+                    logger.info(f"  {sym}: bid={df.loc[sym, 'bid']}, ask={df.loc[sym, 'ask']}, last={df.loc[sym, 'last']}")
+            
             # Get HomeBroker sheet
             homebroker_sheet = self.workbook.sheets(homebroker_sheet_name)
             
-            # Prepare data for HomeBroker sheet
-            # The original code updates specific ranges, so we'll maintain that approach
+            # Build symbol-to-row mapping ONCE (cache for performance)
+            if not hasattr(self, '_symbol_row_cache') or self.update_stats['updates_performed'] == 0:
+                symbols_range = homebroker_sheet.range('A:A')
+                symbols = symbols_range.value
+                self._symbol_row_cache = {}
+                for idx, cell_value in enumerate(symbols):
+                    if cell_value:
+                        self._symbol_row_cache[cell_value] = idx + 1  # Excel rows are 1-indexed
+                logger.info(f"Built symbol row cache with {len(self._symbol_row_cache)} symbols")
             
-            # Update data row by row for better control
+            # BULK UPDATE: Build 2D array for all data at once
+            # Columns: B=bid_size, C=bid, D=ask, E=ask_size, F=last, G=change, H=open, I=high, J=low, K=previous_close, L=turnover, M=volume, N=operations, O=datetime
+            field_order = ['bid_size', 'bid', 'ask', 'ask_size', 'last', 'change', 'open', 
+                          'high', 'low', 'previous_close', 'turnover', 'volume', 'operations', 'datetime']
+            
+            # Collect updates by row number
+            updates_by_row = {}
             for symbol, row_data in df.iterrows():
-                try:
-                    self._update_single_instrument_row(homebroker_sheet, symbol, row_data)
-                except Exception as e:
-                    logger.warning(f"Error updating row for {symbol}: {e}")
-                    continue
+                row_index = self._symbol_row_cache.get(symbol)
+                if row_index:
+                    # Build row values
+                    row_values = []
+                    for field in field_order:
+                        if field in row_data:
+                            row_values.append(get_excel_safe_value(row_data[field]))
+                        else:
+                            row_values.append(0)
+                    updates_by_row[row_index] = row_values
+            
+            # Find contiguous ranges for even faster bulk updates
+            sorted_rows = sorted(updates_by_row.keys())
+            if sorted_rows:
+                min_row = sorted_rows[0]
+                max_row = sorted_rows[-1]
+                
+                # Build 2D array with all rows (including gaps filled with existing data)
+                bulk_data = []
+                for row_idx in range(min_row, max_row + 1):
+                    if row_idx in updates_by_row:
+                        bulk_data.append(updates_by_row[row_idx])
+                    else:
+                        # Keep existing data for rows not in DataFrame (fill with None to skip update)
+                        bulk_data.append([None] * len(field_order))
+                
+                # Single bulk write: Write entire range B{min}:O{max} at once
+                range_address = f'B{min_row}:O{max_row}'
+                homebroker_sheet.range(range_address).value = bulk_data
+                
+                logger.info(f"✅ Bulk updated {len(updates_by_row)} instruments in range {range_address}")
             
             self.update_stats['updates_performed'] += 1
-            logger.info(f"Updated HomeBroker sheet with {len(df)} instruments")
             return True
             
         except Exception as e:
@@ -172,21 +220,56 @@ class SheetOperations:
             data: Market data for the instrument
         """
         try:
-            # Find the row for this symbol (this would need to be customized based on sheet layout)
-            # For now, we'll use a simple approach - in practice, you'd need to map symbols to rows
+            # Use cached row mapping instead of searching column A every time
+            if hasattr(self, '_symbol_row_cache'):
+                row_index = self._symbol_row_cache.get(symbol)
+            else:
+                # Fallback: search column A (slower)
+                symbols_range = sheet.range('A:A')
+                symbols = symbols_range.value
+                row_index = None
+                for idx, cell_value in enumerate(symbols):
+                    if cell_value == symbol:
+                        row_index = idx + 1
+                        break
             
-            # Standard market data fields
-            fields_to_update = {
-                'bid': get_excel_safe_value(data.get('bid')),
-                'ask': get_excel_safe_value(data.get('ask')),
-                'last': get_excel_safe_value(data.get('last')),
-                'volume': get_excel_safe_value(data.get('volume')),
-                'change': get_excel_safe_value(data.get('change'))
+            if row_index is None:
+                logger.warning(f"Symbol '{symbol}' not found in sheet column A")
+                return
+            
+            # Define column mapping (adjust based on your Excel structure)
+            # Assuming: A=symbol, B=bid_size, C=bid, D=ask, E=ask_size, F=last, G=change, etc.
+            column_mapping = {
+                'bid_size': 'B',
+                'bid': 'C',
+                'ask': 'D',
+                'ask_size': 'E',
+                'last': 'F',
+                'change': 'G',
+                'open': 'H',
+                'high': 'I',
+                'low': 'J',
+                'previous_close': 'K',
+                'turnover': 'L',
+                'volume': 'M',
+                'operations': 'N',
+                'datetime': 'O'
             }
             
-            # This is a placeholder - in practice, you'd need to know the exact cell mappings
-            # For each symbol in your Excel sheet structure
-            logger.debug(f"Would update {symbol} with data: {fields_to_update}")
+            # Batch update: Prepare all values in one list for faster Excel write
+            # Build row data for columns B through O (14 columns)
+            row_values = []
+            for field in ['bid_size', 'bid', 'ask', 'ask_size', 'last', 'change', 'open', 
+                         'high', 'low', 'previous_close', 'turnover', 'volume', 'operations', 'datetime']:
+                if field in data:
+                    row_values.append(get_excel_safe_value(data[field]))
+                else:
+                    row_values.append(0)
+            
+            # Single batch write for entire row (B:O)
+            sheet.range(f'B{row_index}:O{row_index}').value = row_values
+            
+            logger.info(f"✅ Updated {symbol} at row {row_index} - bid={data.get('bid')}, ask={data.get('ask')}, last={data.get('last')}")
             
         except Exception as e:
             logger.warning(f"Error updating single row for {symbol}: {e}")
