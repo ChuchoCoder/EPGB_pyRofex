@@ -221,21 +221,38 @@ class EPGBOptionsApp:
         try:
             logger.info("Starting market data subscription...")
             
+            # Fetch available instruments first
+            logger.info("Fetching available instruments from pyRofex...")
+            available_instruments = self.api_client.fetch_available_instruments()
+            logger.info(f"Found {len(available_instruments)} available instruments")
+            
             # Subscribe to options
             if not self.options_df.empty:
                 options_symbols = list(self.options_df.index)
-                if not self.api_client.subscribe_market_data(options_symbols):
+                success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(options_symbols)
+                
+                if invalid_symbols:
+                    logger.warning(f"Skipped {len(invalid_symbols)} invalid option symbols")
+                    
+                if not success or not valid_symbols:
                     logger.error("Failed to subscribe to options data")
                     return False
-                logger.info(f"Subscribed to {len(options_symbols)} options")
+                    
+                logger.info(f"Subscribed to {len(valid_symbols)} options")
             
             # Subscribe to other securities  
             if not self.everything_df.empty:
                 securities_symbols = list(self.everything_df.index)
-                if not self.api_client.subscribe_market_data(securities_symbols):
+                success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(securities_symbols)
+                
+                if invalid_symbols:
+                    logger.warning(f"Skipped {len(invalid_symbols)} invalid security symbols")
+                    
+                if not success or not valid_symbols:
                     logger.error("Failed to subscribe to securities data")
                     return False
-                logger.info(f"Subscribed to {len(securities_symbols)} securities")
+                    
+                logger.info(f"Subscribed to {len(valid_symbols)} securities")
             
             log_connection_event("Market Data Subscription", "Started successfully")
             return True

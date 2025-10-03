@@ -154,13 +154,31 @@ class SheetOperations:
             
             # Build symbol-to-row mapping ONCE (cache for performance)
             if not hasattr(self, '_symbol_row_cache') or self.update_stats['updates_performed'] == 0:
-                symbols_range = homebroker_sheet.range('A:A')
+                # Ensure headers exist in row 1
+                self._ensure_headers_exist(homebroker_sheet)
+                
+                # Read existing symbols from column A (skip header row)
+                symbols_range = homebroker_sheet.range('A2:A1000')  # Read up to 1000 rows
                 symbols = symbols_range.value
+                
+                # Handle case where only one symbol exists (xlwings returns single value instead of list)
+                if not isinstance(symbols, list):
+                    symbols = [symbols] if symbols else []
+                
                 self._symbol_row_cache = {}
                 for idx, cell_value in enumerate(symbols):
-                    if cell_value:
-                        self._symbol_row_cache[cell_value] = idx + 1  # Excel rows are 1-indexed
-                logger.info(f"Built symbol row cache with {len(self._symbol_row_cache)} symbols")
+                    if cell_value and str(cell_value).strip():
+                        # Row index is idx + 2 (skip header at row 1, and enumerate starts at 0)
+                        self._symbol_row_cache[cell_value] = idx + 2
+                
+                logger.info(f"Built symbol row cache with {len(self._symbol_row_cache)} symbols from Excel")
+                
+                # Auto-populate missing symbols
+                missing_symbols = [sym for sym in df.index if sym not in self._symbol_row_cache]
+                if missing_symbols:
+                    logger.info(f"Auto-populating {len(missing_symbols)} new symbols to HomeBroker sheet...")
+                    self._add_symbols_to_sheet(homebroker_sheet, missing_symbols)
+                    logger.info(f"✅ Added {len(missing_symbols)} new symbols to Excel")
             
             # BULK UPDATE: Build 2D array for all data at once
             # Columns: B=bid_size, C=bid, D=ask, E=ask_size, F=last, G=change, H=open, I=high, J=low, K=previous_close, L=turnover, M=volume, N=operations, O=datetime
@@ -202,6 +220,9 @@ class SheetOperations:
                 
                 logger.info(f"✅ Bulk updated {len(updates_by_row)} instruments in range {range_address}")
             
+            # Update cauciones table on the right side (columns R-U)
+            self._update_cauciones_table(homebroker_sheet, df)
+            
             self.update_stats['updates_performed'] += 1
             return True
             
@@ -209,6 +230,156 @@ class SheetOperations:
             logger.error(f"Error updating market data to HomeBroker sheet: {e}")
             self.update_stats['errors'] += 1
             return False
+    
+    def _ensure_headers_exist(self, sheet: xw.Sheet):
+        """
+        Ensure the HomeBroker sheet has proper headers in row 1.
+        
+        Args:
+            sheet: xlwings Sheet object
+        """
+        try:
+            # Check if headers already exist
+            header_row = sheet.range('A1:O1').value
+            
+            # Define expected headers
+            expected_headers = [
+                'symbol', 'bid_size', 'bid', 'ask', 'ask_size', 'last', 'change',
+                'open', 'high', 'low', 'previous_close', 'turnover', 'volume',
+                'operations', 'datetime'
+            ]
+            
+            # If headers don't match, write them
+            if not header_row or header_row[0] != 'symbol':
+                logger.info("Creating headers in HomeBroker sheet...")
+                sheet.range('A1:O1').value = expected_headers
+                # Optional: Format headers (bold)
+                sheet.range('A1:O1').font.bold = True
+                logger.debug("Headers created successfully")
+                
+        except Exception as e:
+            logger.error(f"Error ensuring headers exist: {e}")
+            raise
+    
+    def _add_symbols_to_sheet(self, sheet: xw.Sheet, symbols: list):
+        """
+        Add new symbols to the HomeBroker sheet.
+        
+        Args:
+            sheet: xlwings Sheet object
+            symbols: List of symbols to add
+        """
+        try:
+            # Find the last row with data in column A (starting from row 2, since row 1 is header)
+            last_row = 1  # Start with header row
+            if hasattr(self, '_symbol_row_cache') and self._symbol_row_cache:
+                last_row = max(self._symbol_row_cache.values())
+            else:
+                # Check for existing data starting from row 2
+                existing_symbols = sheet.range('A2:A1000').value
+                if isinstance(existing_symbols, list):
+                    # Count non-empty cells
+                    non_empty = [s for s in existing_symbols if s and str(s).strip()]
+                    last_row = len(non_empty) + 1  # +1 for header
+                elif existing_symbols:
+                    last_row = 2  # One symbol at row 2
+            
+            # Add symbols starting from the next available row
+            start_row = last_row + 1
+            
+            # Prepare bulk data for faster writing
+            symbol_data = []
+            for i, symbol in enumerate(symbols):
+                row_num = start_row + i
+                
+                # Prepare row: [symbol, bid_size, bid, ask, ask_size, last, change, open, high, low, previous_close, turnover, volume, operations, datetime]
+                row_data = [symbol] + [0] * 13 + ['']  # 13 numeric columns + 1 datetime column
+                symbol_data.append(row_data)
+                
+                # Update cache
+                self._symbol_row_cache[symbol] = row_num
+            
+            # Bulk write all symbols at once (much faster than individual writes)
+            end_row = start_row + len(symbols) - 1
+            sheet.range(f'A{start_row}:O{end_row}').value = symbol_data
+            
+            logger.debug(f"Added {len(symbols)} symbols to sheet starting at row {start_row}")
+            
+        except Exception as e:
+            logger.error(f"Error adding symbols to sheet: {e}")
+            raise
+    
+    def _update_cauciones_table(self, sheet: xw.Sheet, df: pd.DataFrame):
+        """
+        Update the cauciones table on the right side of the HomeBroker sheet.
+        
+        The table has Plazo (Period) in column R starting from row 2:
+        - Row 2: "1 día" -> MERV - XMEV - PESOS - 1D (if exists)
+        - Row 4: "3 días" -> MERV - XMEV - PESOS - 3D
+        - Row 5: "4 días" -> MERV - XMEV - PESOS - 4D
+        - etc.
+        
+        Columns to update:
+        - S: Vencimiento (datetime)
+        - T: Tasa (last price / rate)
+        - U: Monto $ (volume * last)
+        
+        Args:
+            sheet: xlwings Sheet object
+            df: DataFrame with market data
+        """
+        try:
+            # Build mapping from days to pyRofex symbols
+            # Extract only caucion symbols from DataFrame
+            caucion_symbols = [sym for sym in df.index if 'PESOS' in sym and 'D' in sym.split(' - ')[-1]]
+            
+            if not caucion_symbols:
+                return  # No cauciones to update
+            
+            # Mapping from period (e.g., "3D") to row number in cauciones table
+            period_to_row = {}
+            for i in range(1, 61):  # Support 1-60 days
+                period_to_row[f"{i}D"] = i + 1  # Row 2 is 1D, Row 3 is 2D, etc.
+            period_to_row["60D"] = 34  # Special case: 60 días is at row 34
+            
+            # Collect updates for cauciones table
+            updates = []
+            
+            for symbol in caucion_symbols:
+                # Extract period from symbol (e.g., "MERV - XMEV - PESOS - 3D" -> "3D")
+                parts = symbol.split(' - ')
+                if len(parts) >= 4:
+                    period = parts[3]  # e.g., "3D"
+                    
+                    # Get row number for this period
+                    row_num = period_to_row.get(period)
+                    if row_num is None:
+                        continue
+                    
+                    # Get data for this symbol
+                    if symbol in df.index:
+                        row_data = df.loc[symbol]
+                        
+                        # Extract values
+                        tasa = get_excel_safe_value(row_data.get('last', 0))
+                        volume = get_excel_safe_value(row_data.get('volume', 0))
+                        monto = tasa * volume if tasa and volume else 0
+                        datetime_val = get_excel_safe_value(row_data.get('datetime', ''))
+                        
+                        # Store update: (row, [vencimiento, tasa, monto])
+                        updates.append((row_num, [datetime_val, tasa, monto]))
+            
+            # Apply updates to Excel
+            if updates:
+                for row_num, values in updates:
+                    # Update columns S (Vencimiento), T (Tasa), U (Monto $)
+                    sheet.range(f'S{row_num}:U{row_num}').value = values
+                
+                logger.debug(f"Updated {len(updates)} cauciones in table (rows 2-34, columns S-U)")
+            
+        except Exception as e:
+            logger.error(f"Error updating cauciones table: {e}")
+            # Don't raise - this is a non-critical update
     
     def _update_single_instrument_row(self, sheet: xw.Sheet, symbol: str, data: pd.Series):
         """

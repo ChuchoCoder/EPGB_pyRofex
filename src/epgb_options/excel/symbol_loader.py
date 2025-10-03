@@ -31,17 +31,13 @@ class SymbolLoader:
         'panel_general': 'M2:M500' # Panel General: Column M
     }
     
-    # Predefined cauciones (repos) list
+    # Predefined cauciones (repos) list - only valid symbols from pyRofex API
+    # Note: 1D, 2D, 7D, 8D, 9D are not available in the API
     CAUCIONES = [
-        #"MERV - XMEV - PESOS - 1D",
-        #"MERV - XMEV - PESOS - 2D",
         "MERV - XMEV - PESOS - 3D",
         "MERV - XMEV - PESOS - 4D",
         "MERV - XMEV - PESOS - 5D",
         "MERV - XMEV - PESOS - 6D",
-        #"MERV - XMEV - PESOS - 7D",
-        #"MERV - XMEV - PESOS - 8D",
-        #"MERV - XMEV - PESOS - 9D",
         "MERV - XMEV - PESOS - 10D",
         "MERV - XMEV - PESOS - 11D",
         "MERV - XMEV - PESOS - 12D",

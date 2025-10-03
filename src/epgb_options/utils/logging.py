@@ -106,6 +106,6 @@ def log_market_data_event(symbol, event_type, data=None):
     logger = get_logger("market_data")
     
     if data:
-        logger.debug(f"{symbol} - {event_type}: {data}")
+        logger.debug(f"Event: {symbol} - {event_type}: {data}")
     else:
-        logger.info(f"{symbol} - {event_type}")
+        logger.debug(f"Event: {symbol} - {event_type}")

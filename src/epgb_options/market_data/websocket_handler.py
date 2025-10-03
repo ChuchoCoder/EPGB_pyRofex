@@ -226,32 +226,59 @@ class WebSocketHandler:
     
     def websocket_error_handler(self, error):
         """Handle WebSocket error messages."""
-        self.connection_stats['errors'] += 1
-        log_connection_event("WebSocket Error", str(error))
-        
-        logger.error(f"WebSocket error: {error}")
-        
-        # Handle different types of errors
-        if "authentication" in str(error).lower():
-            logger.error("Authentication error - check credentials")
-        elif "connection" in str(error).lower():
-            logger.error("Connection error - check network connectivity")
-        elif "product" in str(error['description']).lower():
-            logger.error("Product error - " + error['description'])
-        else:
-            logger.error("Unknown WebSocket error")
+        try:
+            self.connection_stats['errors'] += 1
+            log_connection_event("WebSocket Error", str(error))
+            
+            logger.error(f"WebSocket error received: {error}")
+            logger.error(f"Error type: {type(error)}")
+            
+            # Safely extract error details
+            error_str = str(error).lower()
+            
+            # Handle different types of errors
+            if "authentication" in error_str:
+                logger.error("Authentication error - check credentials")
+            elif "connection" in error_str:
+                logger.error("Connection error - check network connectivity")
+            elif isinstance(error, dict) and 'description' in error:
+                desc = str(error.get('description', '')).lower()
+                if "product" in desc:
+                    logger.error(f"Product error - {error['description']}")
+                else:
+                    logger.error(f"Error description: {error['description']}")
+            else:
+                logger.error(f"WebSocket error (raw): {error}")
+            
+            # IMPORTANT: Don't raise exceptions - just log and continue
+            logger.info("Error logged, continuing to listen for market data...")
+            
+        except Exception as e:
+            # Catch any errors in error handler to prevent websocket from dying
+            logger.error(f"Exception in websocket_error_handler: {e}")
+            logger.info("Continuing despite error handler exception...")
     
     def websocket_exception_handler(self, exception):
         """Handle WebSocket exceptions."""
-        self.connection_stats['errors'] += 1
-        log_connection_event("WebSocket Exception", str(exception))
-        
-        logger.error(f"WebSocket exception: {exception}")
-        
-        # Log exception details
-        if hasattr(exception, '__traceback__'):
-            import traceback
-            logger.debug(f"Exception traceback: {traceback.format_exc()}")
+        try:
+            self.connection_stats['errors'] += 1
+            log_connection_event("WebSocket Exception", str(exception))
+            
+            logger.error(f"WebSocket exception: {exception}")
+            logger.error(f"Exception type: {type(exception)}")
+            
+            # Log exception details
+            if hasattr(exception, '__traceback__'):
+                import traceback
+                logger.debug(f"Exception traceback: {traceback.format_exc()}")
+            
+            # IMPORTANT: Don't raise exceptions - just log and continue
+            logger.info("Exception logged, continuing to listen for market data...")
+            
+        except Exception as e:
+            # Catch any errors in exception handler to prevent websocket from dying
+            logger.error(f"Exception in websocket_exception_handler: {e}")
+            logger.info("Continuing despite exception handler error...")
     
     def on_error(self, online, error):
         """Handle general errors."""
