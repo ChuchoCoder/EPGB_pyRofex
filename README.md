@@ -1,7 +1,32 @@
 # EPGB Options - Datos de Mercado en Tiempo Real
 
-Aplicación Python para obtener da- **Gestión de símbolos** de opciones desde tu planilla de Excel
-- **Cache inteligente** de instrumentos para mejor rendimiento
+Aplicación Python para obtener da- **Gestión de símbolos** de opciones desde tu planilla de Excel> **Nota Importante**: Esta lógica está basada en análisis de 7,590 instrumentos reales del cache de pyRofex (93% con prefijo MERV, 7% sin prefijo).
+
+## 🔍 Validación del Sistema
+
+Verificá que tu instalación esté correcta ejecutando:
+
+```bash
+# Validación completa del sistema (estructura, importaciones, entry points)
+python tools/validate_system.py
+
+# Validación del quickstart (dependencias, transformaciones, integración)
+python tools/validate_quickstart.py
+```
+
+**validate_system.py** valida:
+- ✅ Importaciones y estructura del paquete `src.epgb_options`
+- ✅ Disponibilidad del comando `epgb-options`
+- ✅ Presencia de módulos de configuración y archivos necesarios
+
+**validate_quickstart.py** valida:
+- ✅ Instalación de dependencias (pyRofex, xlwings, pandas)
+- ✅ Acceso al archivo Excel `EPGB OC-DI - Python.xlsb`
+- ✅ Configuración del entorno y credenciales
+- ✅ Lógica de transformación de símbolos (18 test cases)
+- ✅ Validación de datos de mercado
+- ✅ Integración de módulos Excel y Market Data
+ligente** de instrumentos para mejor rendimiento
 
 ## 📁 Estructura de Archivos
 
@@ -182,9 +207,36 @@ pip install -e .
 
 #### 3. Errores de Autenticación con la API
 
-- Verificá tus credenciales en el archivo `.env` (en la raíz del proyecto)
-- Comprobá el estado de la API de pyRofex
-- Validá que tu cuenta tenga los permisos necesarios
+**Síntomas:**
+```
+❌ AUTHENTICATION FAILED
+🔐 PyRofex rejected your credentials
+Error details: Authentication fails. Incorrect User or Password
+```
+
+**Soluciones:**
+
+1. **Verificá tus credenciales:**
+   - Ingresá a https://www.cocos.xoms.com.ar/ y verificá que tu usuario/contraseña sean correctos
+   - Las credenciales pueden expirar o cambiar
+
+2. **Actualizá el archivo `.env`:**
+   ```bash
+   # Editá el archivo .env en la raíz del proyecto
+   PYROFEX_USER=tu_usuario
+   PYROFEX_PASSWORD=tu_contraseña
+   PYROFEX_ACCOUNT=tu_cuenta
+   ```
+
+3. **Validá la configuración:**
+   ```bash
+   python tools/validate_system.py
+   ```
+
+**Nota de Seguridad:** 
+- ⚠️ Nunca subas el archivo `.env` a git
+- El archivo `.env` está incluido en `.gitignore` por defecto
+- Usa el archivo `.env.example` como plantilla (sin credenciales reales)
 
 #### 4. La aplicación no encuentra el archivo `.env`
 

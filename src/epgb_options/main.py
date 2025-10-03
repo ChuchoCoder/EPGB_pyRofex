@@ -183,7 +183,22 @@ class EPGBOptionsApp:
             # Initialize API client
             self.api_client = pyRofexClient()
             if not self.api_client.initialize():
-                logger.error("Failed to initialize pyRofex API client")
+                print("\n" + "="*70)
+                print("\033[91m🛑 INITIALIZATION FAILED - Application cannot continue\033[0m")
+                print("="*70)
+                print("\033[91m⚠️  PyRofex API client failed to initialize\033[0m")
+                print("\n📋 What this means:")
+                print("   • The application cannot connect to the PyRofex market data API")
+                print("   • Most likely cause: Authentication failure (incorrect credentials)")
+                print("   • Check the error messages above for specific details")
+                print("\n🔧 Next steps:")
+                print("   1. Review the authentication error details above")
+                print("   2. Fix your credentials (see instructions above)")
+                print("   3. Re-run the application")
+                print("\n💡 Need help? Check the README.md file for setup instructions")
+                print("="*70 + "\n")
+                
+                logger.error("🛑 Failed to initialize pyRofex API client - stopping application")
                 return False
             
             # Initialize WebSocket handler
@@ -306,7 +321,22 @@ class EPGBOptionsApp:
             logger.info("🚀 Starting EPGB Options Market Data application")
             
             if not self.initialize():
-                logger.error("Initialization failed - stopping application")
+                print("\n" + "="*70)
+                print("\033[91m💥 APPLICATION STARTUP FAILED\033[0m")
+                print("="*70)
+                print("\033[91m❌ The application could not initialize properly\033[0m")
+                print("\n📋 Common causes:")
+                print("   • Incorrect PyRofex credentials (most common)")
+                print("   • Excel file not found or cannot be opened")
+                print("   • Missing or invalid configuration files")
+                print("\n🔍 Check the error messages above to identify the specific problem")
+                print("\n🔧 Once you fix the issue, run the application again:")
+                print("   python -m epgb_options")
+                print("   # or")
+                print("   epgb-options")
+                print("="*70 + "\n")
+                
+                logger.error("🛑 Initialization failed - stopping application")
                 return
             
             if not self.start_market_data_subscription():

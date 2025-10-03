@@ -1,10 +1,16 @@
 # T019: Comprehensive Quickstart Validation Script
 # Validates all components per quickstart.md requirements
 
+import os
 import sys
 import time
 import traceback
 from datetime import datetime
+from pathlib import Path
+
+# Add project root to Python path to enable imports from src/
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 # Test result tracking
 test_results = {
@@ -276,43 +282,41 @@ for invalid_data, description in invalid_data_tests:
     is_valid, message = validate_market_data(invalid_data)
     log_test_result(f"Invalid data validation: {description}", not is_valid, f"Correctly rejected: {message}")
 
-# Step 7: Helper Functions Test
-print("\n🔍 Step 7: Helper Functions Test")
+# Step 7: Excel Module Integration Test
+print("\n🔍 Step 7: Excel Module Integration Test")
 try:
-    # Test that our helper module exists and functions are callable
-    sys.path.append('.')
-    import Options_Helper_HM
-    
-    helper_functions = [
-        'getOptionsList',
-        'getAccionesList', 
-        'getBonosList',
-        'getCedearsList',
-        'getLetrasList',
-        'getONSList',
-        'getPanelGeneralList',
-        'transform_symbol_for_pyrofex'
-    ]
-    
-    for func_name in helper_functions:
-        if hasattr(Options_Helper_HM, func_name):
-            log_test_result(f"Helper function: {func_name}", True, "Function available")
-        else:
-            log_test_result(f"Helper function: {func_name}", False, "Function not found")
-            
-except ImportError as e:
-    log_test_result("Options_Helper_HM import", False, f"Cannot import helper module: {e}")
+    from src.epgb_options.excel.symbol_loader import SymbolLoader
+    from src.epgb_options.excel.workbook_manager import WorkbookManager
 
-# Step 8: Main Script Integration Test
-print("\n🔍 Step 8: Main Script Integration Test")
+    # Check key classes exist and have required methods
+    assert hasattr(WorkbookManager, 'connect'), "WorkbookManager missing connect"
+    assert hasattr(WorkbookManager, 'get_sheet'), "WorkbookManager missing get_sheet"
+    assert hasattr(SymbolLoader, 'get_options_list'), "SymbolLoader missing get_options_list"
+    assert hasattr(SymbolLoader, 'get_all_symbols'), "SymbolLoader missing get_all_symbols"
+    
+    log_test_result("Excel modules import", True, "WorkbookManager and SymbolLoader available")
+    log_test_result("Excel module methods", True, "Required methods validated")
+            
+except Exception as e:
+    log_test_result("Excel modules integration", False, f"Integration error: {e}")
+
+# Step 8: Market Data Module Integration Test
+print("\n🔍 Step 8: Market Data Module Integration Test")
 try:
-    # Test that main script can be imported (syntax check)
-    import main_HM
-    log_test_result("Main script import", True, "main_HM.py syntax valid")
-except ImportError as e:
-    log_test_result("Main script import", False, f"Import error: {e}")
-except SyntaxError as e:
-    log_test_result("Main script import", False, f"Syntax error: {e}")
+    from src.epgb_options.market_data.api_client import pyRofexClient
+    from src.epgb_options.market_data.websocket_handler import WebSocketHandler
+
+    # Check key classes exist and have required methods
+    assert hasattr(pyRofexClient, 'initialize'), "pyRofexClient missing initialize"
+    assert hasattr(pyRofexClient, 'fetch_available_instruments'), "pyRofexClient missing fetch_available_instruments"
+    assert hasattr(WebSocketHandler, 'market_data_handler'), "WebSocketHandler missing market_data_handler"
+    assert hasattr(WebSocketHandler, 'set_data_references'), "WebSocketHandler missing set_data_references"
+    
+    log_test_result("Market data modules import", True, "pyRofexClient and WebSocketHandler available")
+    log_test_result("Market data methods", True, "Required methods validated")
+            
+except Exception as e:
+    log_test_result("Market data integration", False, f"Integration error: {e}")
 
 # Final Summary
 print("\n" + "="*60)

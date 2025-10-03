@@ -44,7 +44,33 @@ class pyRofexClient:
             return True
             
         except Exception as e:
-            logger.error(f"Failed to initialize pyRofex: {e}")
+            error_msg = str(e)
+            
+            # Check if it's an authentication error
+            if "Authentication fails" in error_msg or "Incorrect User or Password" in error_msg:
+                print("\n" + "="*70)
+                print("\033[91m❌ AUTHENTICATION FAILED\033[0m")
+                print("="*70)
+                print("\033[91m🔐 PyRofex rejected your credentials\033[0m")
+                print(f"\nError details: {error_msg}")
+                print("\n📋 What happened:")
+                print("   • PyRofex API rejected the username/password combination")
+                print("   • Your account credentials are incorrect or expired")
+                print("\n🔧 How to fix:")
+                print("   1. Verify your credentials at: https://www.cocos.xoms.com.ar/")
+                print("   2. Update your credentials in ONE of these locations:")
+                print("      → .env file (recommended):")
+                print("         PYROFEX_USER=your_username")
+                print("         PYROFEX_PASSWORD=your_password")
+                print("         PYROFEX_ACCOUNT=your_account")
+                print("      → OR in src/epgb_options/config/pyrofex_config.py")
+                print("\n⚠️  Security tip: Never commit credentials to git!")
+                print("="*70 + "\n")
+                
+                logger.error(f"🔐 Authentication failed: {error_msg}")
+            else:
+                logger.error(f"Failed to initialize pyRofex: {e}")
+            
             return False
     
     def fetch_available_instruments(self, force_refresh: bool = False) -> Set[str]:

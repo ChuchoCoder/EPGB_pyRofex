@@ -119,6 +119,7 @@ credentials.json
 local_settings.py
 
 # EPGB Configuration - Environment Variables
+!.env.example
 .env
 .env.production
 .env.development
