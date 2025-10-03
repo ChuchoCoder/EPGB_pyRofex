@@ -8,12 +8,14 @@ Date: 2025-09-27
 Modified Principles:
 - NEW: I. Simplicity First - Emphasizes vanilla Python, minimal dependencies
 - NEW: II. Excel Live Integration - xlwings integration with open Excel files
+- UPDATED: II. Excel Live Integration - Added CRITICAL requirement for bulk range updates
 - NEW: III. Real-time Data Updates - Continuous market data without blocking
 - NEW: IV. Configuration Transparency - Clear symbol lists and credentials
 - NEW: V. No Testing Overhead - Explicitly excludes unit testing requirements
 
 Added Sections:
 - Technical Constraints: Technology stack, performance standards
+- UPDATED: Performance Standards - Added bulk update requirement
 - Development Workflow: Code organization principles
 
 Removed Sections:
@@ -42,6 +44,8 @@ Keep the script straightforward and maintainable. Use vanilla Python with minima
 
 Excel files MUST remain updatable while open. Use xlwings for seamless integration with existing Excel workbooks. Maintain compatibility with .xlsb format. Preserve existing Excel structure and formatting when updating data.
 
+**CRITICAL: All Excel updates MUST use bulk range updates for performance.** Instead of updating individual cells or rows in a loop, collect all changes and write them in a single operation using xlwings range assignments (e.g., `sheet.range('B3:O34').value = bulk_data`). This minimizes COM calls to Excel and dramatically improves update speed, especially for real-time market data streaming. Individual cell updates in loops are prohibited due to severe performance degradation.
+
 ### III. Real-time Data Updates
 
 Market data updates MUST occur continuously without blocking the main execution thread. Handle API responses asynchronously where possible. Implement proper error handling for network failures and API rate limits.
@@ -67,6 +71,7 @@ This utility script does NOT require unit tests or TDD practices. Focus on opera
 
 - Market data updates should complete within reasonable timeframes (typically under 30 seconds)
 - Excel updates must not interfere with user interaction
+- **All Excel writes MUST use bulk range updates** - Single operation for entire data range instead of per-row/per-cell loops
 - Memory usage should remain reasonable for continuous operation
 
 ## Development Workflow
@@ -85,4 +90,4 @@ All modifications must maintain compatibility with existing Excel workbooks and 
 
 For development guidance, refer to existing code comments and inline documentation rather than external testing frameworks.
 
-**Version**: 1.0.0 | **Ratified**: 2025-09-27 | **Last Amended**: 2025-09-27
+**Version**: 1.0.1 | **Ratified**: 2025-09-27 | **Last Amended**: 2025-10-03
