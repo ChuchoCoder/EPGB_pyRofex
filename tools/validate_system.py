@@ -1,12 +1,12 @@
 # T020: End-to-End System Validation Script
 # Comprehensive testing of the complete PyRofex integration system
 
-import sys
-import time
-import threading
-from datetime import datetime, timedelta
-import traceback
 import queue
+import sys
+import threading
+import time
+import traceback
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # Test configuration
@@ -48,16 +48,16 @@ def main():
         sys.path.insert(0, str(project_root))
         
         # Import core dependencies
+        import pandas as pd
         import pyRofex
         import xlwings as xw
-        import pandas as pd
         from dotenv import load_dotenv
-        
+
         # Import our new package structure
         from src.epgb_options import main
         from src.epgb_options.config import excel_config, pyrofex_config
-        from src.epgb_options.market_data import api_client
         from src.epgb_options.excel import workbook_manager
+        from src.epgb_options.market_data import api_client
         from src.epgb_options.utils import logging as utils_logging
         
         log_validation_message("Package Imports", "All required modules imported successfully", True)
@@ -71,7 +71,8 @@ def main():
     print("\n🔍 Test 2: Configuration System")
     try:
         # Test configuration access
-        from src.epgb_options.config import validate_excel_config, validate_pyRofex_config
+        from src.epgb_options.config import (validate_excel_config,
+                                             validate_pyRofex_config)
         
         excel_valid = validate_excel_config()
         pyrofex_valid = validate_pyRofex_config()
@@ -94,7 +95,7 @@ def main():
             project_root / "src" / "epgb_options" / "market_data" / "__init__.py",
             project_root / "src" / "epgb_options" / "excel" / "__init__.py",
             project_root / "src" / "epgb_options" / "utils" / "__init__.py",
-            project_root / "data" / ".env.example",
+            project_root / ".env.example",
             project_root / "pyproject.toml"
         ]
         
@@ -114,9 +115,9 @@ def main():
     # Test 4: Entry Point Testing
     print("\n🔍 Test 4: Entry Point Validation")
     try:
-        import subprocess
         import os
-        
+        import subprocess
+
         # Test main entry point
         env = os.environ.copy()
         env['PYTHONPATH'] = str(project_root)

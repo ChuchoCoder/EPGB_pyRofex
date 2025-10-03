@@ -41,26 +41,61 @@ pyRofex.initialize(user="your_username", password="your_password", account="your
 
 ### Step 3: Symbol Transformation Test
 ```python
-def transform_symbol(raw_symbol):
-    # Add prefix
-    transformed = "MERV - XMEV - " + raw_symbol
-    
-    # Handle suffix transformation
-    if transformed.endswith(" - spot"):
-        transformed = transformed.replace(" - spot", " - CI")
-    
-    return transformed
+import re
 
-# Test cases
-test_symbols = ["YPFD - 24hs", "GGAL - spot", "BBAR - CI"]
+def transform_symbol(raw_symbol):
+    # Skip if already has MERV prefix
+    if raw_symbol.startswith("MERV - XMEV - "):
+        return raw_symbol
+    
+    symbol = raw_symbol.strip()
+    
+    # Replace " - spot" with " - CI"
+    if symbol.endswith(" - spot"):
+        symbol = symbol.replace(" - spot", " - CI")
+    
+    # Check if needs default " - 24hs" suffix
+    settlement_suffixes = [" - 24hs", " - 48hs", " - 72hs", " - CI", " - spot", " - T0", " - T1", " - T2"]
+    has_suffix = any(symbol.endswith(suffix) for suffix in settlement_suffixes)
+    
+    # Check exceptions: CAUCIONES, INDICES, FUTUROS
+    is_caucion = "PESOS" in symbol and symbol.split(" - ")[-1].endswith("D") and symbol.split(" - ")[-1][:-1].isdigit()
+    is_index = symbol.startswith("I.") or symbol.startswith("IND.")
+    is_future = "/" in symbol or bool(re.search(r'(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC)\d{2}', symbol))
+    
+    # Add default suffix if needed
+    if not has_suffix and not is_caucion and not is_index and not is_future:
+        symbol = f"{symbol} - 24hs"
+    
+    # Add prefix
+    return "MERV - XMEV - " + symbol
+
+# Test cases - including default suffix behavior
+test_symbols = [
+    "YPFD - 24hs",    # Existing suffix preserved
+    "GGAL - spot",    # spot → CI conversion
+    "BBAR - CI",      # Existing suffix preserved
+    "YPFD",           # Default suffix added
+    "ALUA - 48hs",    # Existing suffix preserved
+    "PESOS - 3D",     # Exception: Caucion, no default
+    "I.MERV",         # Exception: Index, no default
+    "DLR/FEB25",      # Exception: Future, no default
+]
+
+print("Symbol Transformation Tests:")
 for symbol in test_symbols:
-    print(f"{symbol} → {transform_symbol(symbol)}")
+    print(f"{symbol:20} → {transform_symbol(symbol)}")
 ```
 
 **Expected Output**:
-- YPFD - 24hs → MERV - XMEV - YPFD - 24hs
-- GGAL - spot → MERV - XMEV - GGAL - CI  
-- BBAR - CI → MERV - XMEV - BBAR - CI
+- `YPFD - 24hs` → `MERV - XMEV - YPFD - 24hs` (preserved)
+- `GGAL - spot` → `MERV - XMEV - GGAL - CI` (converted)
+- `BBAR - CI` → `MERV - XMEV - BBAR - CI` (preserved)
+- `YPFD` → `MERV - XMEV - YPFD - 24hs` (default added)
+- `ALUA - 48hs` → `MERV - XMEV - ALUA - 48hs` (preserved)
+- `PESOS - 3D` → `MERV - XMEV - PESOS - 3D` (exception: caucion)
+- `I.MERV` → `MERV - XMEV - I.MERV` (exception: index)
+- `DLR/FEB25` → `MERV - XMEV - DLR/FEB25` (exception: future)
 
 ### Step 4: WebSocket Connection Test
 ```python

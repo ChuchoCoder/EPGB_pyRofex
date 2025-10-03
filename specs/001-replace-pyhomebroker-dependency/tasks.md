@@ -44,7 +44,9 @@
 - [ ] T004 [P] Create symbol transformation function in `Options_Helper_HM.py`:
   - Add "MERV - XMEV - " prefix to all symbols
   - Replace " - spot" suffix with " - CI"  
-  - Preserve other suffixes (" - 24hs", etc.)
+  - Add " - 24hs" as default suffix if no settlement suffix present
+  - Do NOT add default suffix for: CAUCIONES (PESOS - XD), INDICES (I.xxx or IND.xxx), FUTUROS (contains "/" or month codes)
+  - Preserve existing suffixes (" - 24hs", " - 48hs", " - 72hs", " - CI", " - T0", " - T1", " - T2", etc.)
 - [ ] T005 Update all symbol list functions in `Options_Helper_HM.py` to apply transformation
 
 ## Phase 3.3: PyRofex Environment Configuration

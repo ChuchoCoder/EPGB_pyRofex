@@ -1,387 +1,254 @@
-# EPGB Options Market Data
+# EPGB Options - Datos de Mercado en Tiempo Real
 
-A Python application for fetching and managing options market data with Excel integration using pyRofex API.
+Aplicación Python para obtener da- **Gestión de símbolos** de opciones desde tu planilla de Excel
+- **Cache inteligente** de instrumentos para mejor rendimiento
 
-## 🚀 Quick Start
+## 📁 Estructura de Archivos
 
-### Prerequisites
+Los archivos que necesitás están todos en la raíz del proyecto:
 
-- Python 3.9 or higher
-- Microsoft Excel (for xlwings integration)
-- Windows OS (recommended for Excel integration)
+```text
+EPGB_pyRofex/
+├── .env.example                ← Plantilla de configuración
+├── .env                        ← Tu configuración (creala vos)
+├── EPGB OC-DI - Python.xlsb   ← Planilla de Excel
+├── src/                        ← Código de la aplicación
+└── data/cache/                 ← Cache automático (no tocar)
+```
 
-### Installation
+> **Importante:** Tanto `.env` como el archivo Excel deben estar en la raíz del proyecto, NO en subcarpetas.
 
-#### Option 1: Modern Editable Install (Recommended)
+## 🔧 Validación del Sistemade mercado de opciones en tiempo real con integración a Excel usando la API de pyRofex.
+
+## 🚀 Inicio Rápido
+
+### Requisitos Previos
+
+- Python 3.9 o superior
+- Microsoft Excel (para la integración con xlwings)
+- Windows (recomendado para la integración con Excel)
+
+### Instalación
+
+#### Opción 1: Instalación Moderna (Recomendada)
 
 ```bash
-# Clone the repository
+# Clonar el repositorio
 git clone https://github.com/ChuchoCoder/EPGB_pyRofex.git
 cd EPGB_pyRofex
 
-# Create & activate a virtual environment (Windows)
+# Crear y activar un entorno virtual (Windows)
 python -m venv .venv
-.venv\\Scripts\\activate
+.venv\Scripts\activate
 
-# Install package in editable mode with optional dev extras
+# Instalar el paquete
 pip install -e .
-# Or include development tooling
-pip install -e ".[dev]"
 ```
 
-#### Option 2: Manual Installation
+#### Opción 2: Instalación Manual
 
 ```bash
-# Create virtual environment
+# Crear entorno virtual
 python -m venv .venv
 
-# Activate virtual environment
-# Windows:
+# Activar entorno virtual (Windows)
 .venv\Scripts\activate
-# Linux/Mac:
-source .venv/bin/activate
 
-# Install dependencies
+# Instalar dependencias
 pip install -r requirements.txt
-
-# Or for development
-pip install -r requirements-dev.txt
 ```
 
-### Configuration Setup
+### Configuración
 
-1. **Copy environment template:**
+1. **Copiá el archivo de configuración de ejemplo:**
 
    ```bash
-   copy data\.env.example .env
+   copy .env.example .env
    ```
 
-2. **Edit `.env` file with your credentials:**
+   > **Nota:** Tanto `.env.example` (plantilla) como tu `.env` (configuración) están en la raíz del proyecto.
+
+2. **Editá el archivo `.env` con tus credenciales:**
 
    ```env
-   PYROFEX_USER=your_actual_username
-   PYROFEX_PASSWORD=your_actual_password
-   PYROFEX_ACCOUNT=your_actual_account
+   PYROFEX_USER=tu_usuario
+   PYROFEX_PASSWORD=tu_contraseña
+   PYROFEX_ACCOUNT=tu_cuenta
    ```
 
-3. **(Optional) Generate missing config modules:**
+   > **Importante:** Nunca compartas ni subas tu archivo `.env` con tus credenciales reales.
+
+3. **(Opcional) Generá módulos de configuración faltantes:**
 
    ```bash
    python tools/create_configs.py
    ```
 
-### Running the Application
+### Ejecutar la Aplicación
 
 ```bash
-# Run via installed console script
+# Ejecutar mediante el comando instalado
 epgb-options
 
-# Or module form (equivalent)
+# O en forma de módulo (equivalente)
 python -m epgb_options.main
 ```
 
-Add `--help` for future CLI flags (planned extension point).
+## 📊 ¿Qué Hace Esta Aplicación?
 
-### Debugging in VS Code
+EPGB Options te permite:
 
-The project includes pre-configured debug configurations in `.vscode/launch.json`:
+- **Obtener datos de mercado en tiempo real** de opciones usando la API de Matba Rofex
+- **Integración directa con Excel** para visualizar y analizar los datos
+- **Actualización automática** de precios, volúmenes y otros datos de mercado
+- **Gestión de símbolos** de opciones desde tu planilla de Excel
+- **Cache inteligente** de instrumentos para mejor rendimiento
 
-1. **Python: EPGB Options (Main)** - Debug the main application (looks for `.env` in root)
-2. **Python: EPGB Options (data/.env)** - Debug using `.env` from `data/` folder
-3. **Python: Validation Script** - Debug the validation tool
-4. **Python: Create Configs** - Debug config generation
+### 🔄 Transformación Automática de Símbolos
 
-**Quick Start:**
+La aplicación transforma automáticamente los símbolos basándose en análisis de 7,590 instrumentos reales de la API pyRofex:
 
-1. Open the project in VS Code
-2. Set breakpoints in your code (click left of line numbers)
-3. Press `F5` or go to Run → Start Debugging
-4. Select "Python: EPGB Options (Main)" from the dropdown
+**Reglas de Transformación:**
 
-**Debug Features:**
+**1. Prefijo "MERV - XMEV -"** (93% de los símbolos lo tienen):
+- ✅ **SE AGREGA** a: acciones, bonos, cedears, cauciones, letras, ONs del mercado MERV
+- ✅ **EXCEPCIÓN ESPECIAL**: `I.MERVAL` SÍ lleva el prefijo
+- ❌ **NO SE AGREGA** a:
+  - Opciones ROS (295 símbolos): `SOJ.ROS/MAY26 292 C`
+  - Futuros ROS (52 símbolos): `MAI.ROS/MAR26`
+  - Futuros/Opciones Dólar (84 símbolos): `DLR/FEB26`, `DLR/OCT25 1520 C`
+  - Índices (4 símbolos): `I.BTC`, `I.SOJCONT`, `I.TRICONT`, `I.RFX20`
+  - Otros mercados internacionales (~60 símbolos): `ORO/ENE26`, `WTI/NOV25`, `.CME/`, `.BRA/`
+  - Mercado disponible: `GIR.ROS.P/DISPO`
 
-- Step through code line by line (`F10` = step over, `F11` = step into)
-- Inspect variables in the Variables pane
-- Watch expressions in the Watch pane
-- View call stack and breakpoints
-- Use Debug Console for runtime evaluation
+**2. Sufijo de Liquidación**:
+- ✅ Reemplaza ` - spot` por ` - CI` (Contado Inmediato)
+- ✅ **Agrega ` - 24hs` por defecto** solo a símbolos MERV sin sufijo
+- ✅ Preserva sufijos existentes: ` - 24hs`, ` - 48hs`, ` - 72hs`, ` - CI`, etc.
+- ❌ **NO agrega sufijo por defecto** a: cauciones (PESOS - XD), índices, opciones, futuros
 
-**Tips:**
+**Ejemplos de Transformación:**
 
-- Set breakpoints in `src/epgb_options/main.py` initialization
-- Check `api_client.py` for API connection issues
-- Monitor `websocket_handler.py` for real-time data flow
-- Use conditional breakpoints (right-click breakpoint) for specific scenarios
+| Tipo | Símbolo en Excel | Transformación | Resultado pyRofex |
+|------|------------------|----------------|-------------------|
+| **MERV** | `YPFD` | Prefijo + sufijo por defecto | `MERV - XMEV - YPFD - 24hs` |
+| **MERV** | `YPFD - 24hs` | Prefijo + sufijo preservado | `MERV - XMEV - YPFD - 24hs` |
+| **MERV** | `GGAL - spot` | Prefijo + spot→CI | `MERV - XMEV - GGAL - CI` |
+| **MERV** | `ALUA - 48hs` | Prefijo + sufijo preservado | `MERV - XMEV - ALUA - 48hs` |
+| **MERV** | `PESOS - 3D` | Prefijo (caución, sin sufijo) | `MERV - XMEV - PESOS - 3D` |
+| **MERV** | `I.MERVAL` | Prefijo (excepción especial) | `MERV - XMEV - I.MERVAL` |
+| **ROS** | `SOJ.ROS/MAY26 292 C` | Sin cambios (opción ROS) | `SOJ.ROS/MAY26 292 C` |
+| **ROS** | `MAI.ROS/MAR26` | Sin cambios (futuro ROS) | `MAI.ROS/MAR26` |
+| **DLR** | `DLR/FEB26` | Sin cambios (futuro dólar) | `DLR/FEB26` |
+| **DLR** | `DLR/OCT25 1520 C` | Sin cambios (opción dólar) | `DLR/OCT25 1520 C` |
+| **Índices** | `I.BTC` | Sin cambios (índice) | `I.BTC` |
+| **Índices** | `I.SOJCONT` | Sin cambios (índice) | `I.SOJCONT` |
+| **Otros** | `ORO/ENE26` | Sin cambios (futuro oro) | `ORO/ENE26` |
+| **Otros** | `WTI/NOV25` | Sin cambios (futuro petróleo) | `WTI/NOV25` |
+| **Otros** | `GIR.ROS.P/DISPO` | Sin cambios (mercado DISPO) | `GIR.ROS.P/DISPO` |
 
-## 📦 Dependency Management
+> **Nota Importante**: Esta lógica está basada en análisis de 7,590 instrumentos reales del cache de pyRofex (93% con prefijo MERV, 7% sin prefijo).
 
-This project uses modern Python dependency management with multiple options:
+## � Validación del Sistema
 
-### Files Overview
-
-- **`pyproject.toml`** - Modern Python project configuration (PEP 518/621)
-- **`requirements.txt`** - Core production dependencies
-- **`requirements-dev.txt`** - Development dependencies
-- **`setup.py`** - Automated setup script with multiple modes
-- **`setup.ps1`** - PowerShell setup script for Windows users
-- **`Makefile`** - Unix-style command shortcuts
-
-### Core Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| pyRofex | ≥0.5.0 | Market data API integration |
-| xlwings | ≥0.31.0 | Excel integration |
-| pandas | ≥2.0.0 | Data manipulation |
-| python-dotenv | ≥1.0.0 | Environment variable management |
-| python-dateutil | ≥2.8.0 | Date/time utilities |
-
-### Development Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| ruff | ≥0.1.0 | Modern linting and formatting |
-| mypy | ≥1.0.0 | Static type checking |
-| pre-commit | ≥3.0.0 | Git hooks for code quality |
-
-## 🛠️ Development Commands
-
-### Core Dev Tasks (Modern Way)
-
-```bash
-pip install -e ".[dev]"   # Install dev dependencies
-ruff check .               # Lint
-ruff format .              # Auto-format
-mypy src/epgb_options      # Type check
-pytest                     # (When tests added)
-```
-
-\n### (Legacy) setup.py helpers
-Retained temporarily; will be removed in a future cleanup.
-
-```bash
-python setup.py --check
-python setup.py --dev
-```
-
-\n### PowerShell Convenience (Optional)
-
-```powershell
-.# Activate environment first
-.venv\Scripts\activate
-ruff check .
-ruff format .
-mypy src/epgb_options
-```
-
-\n### Using Make (Unix/Linux/Mac)
-
-```bash
-make install-dev             # Install development dependencies
-make lint                    # Run linting
-make format                  # Format code
-make type-check             # Run type checking
-make quality                # Run all quality checks
-```
-
-## 📁 Project Structure
-
-```text
-EPGB_pyRofex/
-├── pyproject.toml          # Modern project configuration
-├── requirements.txt        # Core dependencies
-├── requirements-dev.txt    # Development dependencies
-├── setup.py.backup        # (Legacy) transitional script (avoid)
-├── setup.ps1              # (Optional) legacy helper
-├── Makefile               # Unix command shortcuts
-│
-├── src/epgb_options/      # Main application package
-│   ├── __init__.py
-│   ├── main.py           # Application entry point
-│   ├── config/           # Configuration modules
-│   │   ├── __init__.py
-│   │   ├── excel_config.py
-│   │   └── pyrofex_config.py
-│   ├── market_data/      # Market data operations
-│   │   ├── __init__.py
-│   │   ├── api_client.py
-│   │   ├── websocket_handler.py
-│   │   └── data_processor.py
-│   ├── excel/            # Excel operations
-│   │   ├── __init__.py
-│   │   ├── workbook_manager.py
-│   │   ├── symbol_loader.py
-│   │   └── sheet_operations.py
-│   └── utils/            # Utility functions
-│       ├── __init__.py
-│       ├── logging.py
-│       ├── validation.py
-│       └── helpers.py
-│
-├── tools/                # Development tools
-│   ├── create_configs.py # Configuration migration utility
-│   ├── validate_system.py
-│   ├── validate_quickstart.py
-│   └── check_tickers.py
-│
-├── data/                 # Data files
-│   ├── .env.example     # Environment variable template
-│   └── EPGB OC-DI - Python.xlsb  # Excel workbook
-│
-├── tests/               # Test suite
-│   ├── __init__.py
-│   └── conftest.py
-│
-├── docs/                # Documentation
-│   ├── STRUCTURE_PROPOSAL.md
-│   ├── MIGRATION_STATUS.md
-│   └── specs/          # Feature specifications
-│
-├── .gitignore          # Git ignore patterns
-└── README.md           # Project documentation
-```
-
-> Legacy monolithic files (`main_HM.py`, `Options_Helper_HM.py`) were removed after migration.
-
-\n## ⚙️ Configuration Management
-
-The application uses a modern configuration system:
-
-1. **Configuration Modules (generated / maintained):**
-   - `src/epgb_options/config/excel_config.py`
-   - `src/epgb_options/config/pyrofex_config.py`
-
-2. **Environment Variables:**
-   - `.env` file for local development
-   - Environment variables override config files
-
-3. **Security Features:**
-   - Startup credential validation with descriptive failures
-   - `.env` excluded via `.gitignore`
-   - No plaintext password defaults retained
-
-\n## 🔧 Environment Setup Validation
-
-Check your setup with:
+Verificá que tu instalación esté correcta ejecutando:
 
 ```bash
 python tools/validate_system.py
 ```
 
-Validates:
+Este comando valida:
 
-- ✅ Imports & package structure
-- ✅ Entry point availability (`epgb-options`)
-- ✅ Config modules + environment template presence
+- ✅ Importaciones y estructura del paquete
+- ✅ Disponibilidad del comando `epgb-options`
+- ✅ Presencia de módulos de configuración y archivos necesarios
 
-\n## 🎯 Usage Examples
+## 📋 Solución de Problemas
 
-### Basic Usage
+### Problemas Comunes
 
-```bash
-# 1. Install (dev mode)
-pip install -e ".[dev]"
-
-# 2. Copy & edit environment
-copy data\.env.example .env
-notepad .env
-
-# 3. (Optional) generate config stubs
-python tools/create_configs.py
-
-# 4. Run
-epgb-options
-```
-
-### Development Workflow
+#### 1. Errores de Importación
 
 ```bash
-pip install -e ".[dev]"
-ruff check .
-ruff format .
-mypy src/epgb_options
-epgb-options
+# Reinstalá el paquete
+pip install -e .
 ```
 
-\n## 🔒 Security Considerations
+#### 2. Problemas de Conexión con Excel
 
-- **Never commit `.env` files** - Contains sensitive credentials
-- **Set appropriate file permissions** on configuration files
-- **Use environment variables** in production deployments
-- **Regularly rotate API credentials**
+- Asegurate de que Excel esté instalado y accesible
+- Verificá los permisos del archivo Excel
+- Comprobá que xlwings esté correctamente instalado
 
-\n## 📋 Troubleshooting
+#### 3. Errores de Autenticación con la API
 
-### Common Issues
+- Verificá tus credenciales en el archivo `.env` (en la raíz del proyecto)
+- Comprobá el estado de la API de pyRofex
+- Validá que tu cuenta tenga los permisos necesarios
 
-1. **Import errors:**
+#### 4. La aplicación no encuentra el archivo `.env`
+
+Si ves un error como "No se encontró el archivo .env":
+
+1. Verificá que el archivo `.env` esté en la raíz del proyecto:
 
    ```bash
-   pip install -e .
-   pip install -e ".[dev]"
+   dir .env
    ```
 
-2. **Excel connection issues:**
-   - Ensure Excel is installed and accessible
-   - Check file permissions on Excel workbook
-   - Verify xlwings installation
+2. Si no existe, copialo desde la plantilla:
 
-3. **API authentication errors:**
-   - Verify credentials in `.env` file
-   - Check pyRofex API status
-   - Validate account permissions
+   ```bash
+   copy .env.example .env
+   ```
 
-### Getting Help
+3. Editá el archivo `.env` con tus credenciales reales
 
-1. **Run validation suite:**
+### Obtener Ayuda
+
+1. **Ejecutá el validador del sistema:**
 
    ```bash
    python tools/validate_system.py
    ```
 
-2. **Run configuration migration:**
+2. **Verificá tu configuración:**
 
-   ```bash
-   python tools/create_configs.py
-   ```
+   - Revisá que el archivo `.env` exista en la raíz del proyecto y tenga las credenciales correctas
+   - Confirmá que el entorno virtual esté activado
+   - Asegurate de que Excel esté cerrado antes de ejecutar la aplicación
 
-3. **Upgrade dependencies:**
+## 🔒 Consideraciones de Seguridad
 
-   ```bash
-   python setup.py --upgrade
-   ```
+- **Nunca subas tu archivo `.env`** - Contiene credenciales sensibles
+- **Establecé permisos apropiados** en los archivos de configuración
+- **Rotá tus credenciales regularmente** para mayor seguridad
+- El archivo `.env` está excluido del control de versiones por seguridad
 
-\n## 🤝 Contributing
+## 💡 Dependencias Principales
 
-1. **Setup development environment:**
+Esta aplicación utiliza:
 
-   ```bash
-   pip install -e ".[dev]"
-   ```
+| Paquete | Propósito |
+|---------|-----------|
+| pyRofex | Integración con la API de Matba Rofex |
+| xlwings | Integración con Microsoft Excel |
+| pandas | Manipulación y análisis de datos |
+| python-dotenv | Gestión de variables de entorno |
 
-2. **Install pre-commit hooks:**
+## 👨‍💻 ¿Querés Contribuir?
 
-   ```bash
-   pre-commit install
-   ```
+Si sos desarrollador y querés contribuir al proyecto, consultá la guía para desarrolladores en [CONTRIBUTING.md](CONTRIBUTING.md).
 
-3. **Run quality checks:**
+## 📄 Licencia
 
-   ```bash
-   ruff check .
-   ruff format .
-   mypy src/epgb_options
-   ```
+Este proyecto está licenciado bajo la Licencia MIT.
 
-## 📄 License
+## 🆘 Soporte
 
-This project is licensed under the MIT License.
+Para problemas y consultas:
 
-## 🆘 Support
-
-For issues and questions:
-
-- Run `python tools/validate_system.py` to validate setup
-- Review `src/epgb_options/config/` modules
-- Ensure `.env` is present with populated credentials
-- Confirm virtual environment is active
+- Ejecutá `python tools/validate_system.py` para validar tu configuración
+- Revisá los módulos en `src/epgb_options/config/`
+- Asegurate de que el archivo `.env` exista en la raíz del proyecto con las credenciales correctas
+- Confirmá que el entorno virtual esté activado

@@ -12,20 +12,15 @@ Windows: icacls excel_config.py /grant:r %USERNAME%:F /inheritance:r
 
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
-# Robust .env loading: try project root, then data/.env fallback
-_ROOT = Path(__file__).resolve().parents[3]
-_loaded = load_dotenv()
-if not _loaded:
-    for candidate in (_ROOT / '.env', _ROOT / 'data' / '.env'):
-        if candidate.exists():
-            load_dotenv(dotenv_path=candidate)
-            break
+# Load .env from project root
+load_dotenv()
 
 # Excel Configuration - Environment variables override these defaults
 EXCEL_FILE = os.getenv('EXCEL_FILE', 'EPGB OC-DI - Python.xlsb')
-EXCEL_PATH = os.getenv('EXCEL_PATH', './data/')
+EXCEL_PATH = os.getenv('EXCEL_PATH', './')
 SHEET_HOMEBROKER = os.getenv('SHEET_HOMEBROKER', 'HomeBroker')
 SHEET_TICKERS = os.getenv('SHEET_TICKERS', 'Tickers')
 

@@ -85,6 +85,7 @@ except ImportError as e:
 # Step 2: Excel File Availability Test
 print("\n🔍 Step 2: Excel File Availability Test")
 import os
+
 excel_file = 'EPGB OC-DI - Python.xlsb'
 if os.path.exists(excel_file):
     log_test_result("Excel file exists", True, f"Found {excel_file}")
@@ -140,17 +141,88 @@ for user, password, account in test_credentials:
 # Step 5: Symbol Transformation Test
 print("\n🔍 Step 5: Symbol Transformation Test")
 def transform_symbol_for_pyrofex(symbol):
-    """Test implementation of symbol transformation"""
-    transformed = "MERV - XMEV - " + symbol
-    if transformed.endswith(" - spot"):
-        transformed = transformed.replace(" - spot", " - CI")
-    return transformed
+    """Test implementation of symbol transformation with MERV prefix logic"""
+    import re
 
-# Test cases from quickstart.md
+    # Skip if already has MERV prefix
+    if symbol.startswith("MERV - XMEV - "):
+        return symbol
+    
+    # Strip and handle spot→CI conversion
+    symbol = symbol.strip()
+    if symbol.endswith(" - spot"):
+        symbol = symbol.replace(" - spot", " - CI")
+    
+    # Determine if needs MERV prefix
+    needs_prefix = True
+    
+    # Special case: I.MERVAL gets prefix
+    if symbol == "I.MERVAL":
+        needs_prefix = True
+    # Options (end with " C" or " P")
+    elif re.search(r'\s+\d+\s+[CP]$', symbol):
+        needs_prefix = False
+    # ROS market futures/options
+    elif ".ROS/" in symbol:
+        needs_prefix = False
+    # DLR futures/options
+    elif symbol.startswith("DLR/"):
+        needs_prefix = False
+    # Indices (except MERVAL)
+    elif symbol.startswith("I."):
+        needs_prefix = False
+    # Other futures (contains "/" but not " - " or "PESOS")
+    elif "/" in symbol and " - " not in symbol and "PESOS" not in symbol:
+        needs_prefix = False
+    # International markets
+    elif re.search(r'\.(CME|BRA|MIN|CRN)/', symbol):
+        needs_prefix = False
+    # DISPO market
+    elif "/DISPO" in symbol:
+        needs_prefix = False
+    
+    # If needs prefix, check for default suffix
+    if needs_prefix:
+        settlement_suffixes = [" - 24hs", " - 48hs", " - 72hs", " - CI", " - spot", " - T0", " - T1", " - T2"]
+        has_suffix = any(symbol.endswith(suffix) for suffix in settlement_suffixes)
+        
+        # Check exceptions for default suffix
+        is_caucion = "PESOS" in symbol and symbol.split(" - ")[-1].endswith("D") and symbol.split(" - ")[-1][:-1].isdigit()
+        is_option = bool(re.search(r'\s+\d+\s+[CP]$', symbol))
+        is_index = symbol.startswith("I.")
+        is_future = "/" in symbol or bool(re.search(r'(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC)\d{2}', symbol))
+        
+        # Add default suffix if needed
+        if not has_suffix and not is_caucion and not is_option and not is_index and not is_future:
+            symbol = f"{symbol} - 24hs"
+        
+        return "MERV - XMEV - " + symbol
+    else:
+        return symbol
+
+# Test cases - comprehensive coverage based on instruments_cache.json patterns
 test_cases = [
-    ("YPFD - 24hs", "MERV - XMEV - YPFD - 24hs"),
-    ("GGAL - spot", "MERV - XMEV - GGAL - CI"), 
-    ("BBAR - CI", "MERV - XMEV - BBAR - CI")
+    # MERV Securities - WITH prefix
+    ("YPFD - 24hs", "MERV - XMEV - YPFD - 24hs"),          # Existing suffix preserved
+    ("GGAL - spot", "MERV - XMEV - GGAL - CI"),            # spot → CI conversion
+    ("BBAR - CI", "MERV - XMEV - BBAR - CI"),              # Existing suffix preserved
+    ("YPFD", "MERV - XMEV - YPFD - 24hs"),                 # Default suffix added
+    ("ALUA - 48hs", "MERV - XMEV - ALUA - 48hs"),          # Existing suffix preserved
+    ("PESOS - 3D", "MERV - XMEV - PESOS - 3D"),            # Caucion: prefix yes, no default suffix
+    ("I.MERVAL", "MERV - XMEV - I.MERVAL"),                # Special case: MERVAL index gets prefix
+    
+    # Non-MERV Securities - NO prefix
+    ("SOJ.ROS/MAY26 292 C", "SOJ.ROS/MAY26 292 C"),        # ROS option - no prefix
+    ("SOJ.ROS/MAY26 292 P", "SOJ.ROS/MAY26 292 P"),        # ROS option - no prefix
+    ("TRI.ROS/DIC25 224 C", "TRI.ROS/DIC25 224 C"),        # ROS option - no prefix
+    ("MAI.ROS/MAR26", "MAI.ROS/MAR26"),                    # ROS future - no prefix
+    ("DLR/FEB26", "DLR/FEB26"),                            # DLR future - no prefix
+    ("DLR/OCT25 1520 C", "DLR/OCT25 1520 C"),              # DLR option - no prefix
+    ("I.BTC", "I.BTC"),                                    # Index (non-MERVAL) - no prefix
+    ("I.SOJCONT", "I.SOJCONT"),                            # Index (non-MERVAL) - no prefix
+    ("GIR.ROS.P/DISPO", "GIR.ROS.P/DISPO"),                # DISPO market - no prefix
+    ("ORO/ENE26", "ORO/ENE26"),                            # Commodity future - no prefix
+    ("WTI/NOV25", "WTI/NOV25"),                            # Oil future - no prefix
 ]
 
 all_transformations_correct = True
