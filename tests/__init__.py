@@ -1,3 +1,3 @@
 """
-Test suite initialization.
+Inicialización de la suite de tests.
 """

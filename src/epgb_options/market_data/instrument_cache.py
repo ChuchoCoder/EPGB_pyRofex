@@ -52,11 +52,11 @@ class InstrumentCache:
         self._options_symbols: Optional[Set[str]] = None
         self._all_symbols: Optional[Set[str]] = None
         
-        logger.info(f"Caché de instrumentos inicializado: {self.cache_file} (TTL: {ttl_minutes}m)")
-        logger.info("Usando caché multi-nivel: Memory → File → API")
+        logger.info(f"Caché de instrumentos inicializado: {self.cache_file} (TTL: {self.ttl_minutes}m)")
+        logger.info("Usando caché multi-nivel: Memoria → Archivo → API")
     
     def _is_memory_cache_valid(self) -> bool:
-        """Check if memory cache is still valid (not expired)."""
+        """Verifica si el caché en memoria sigue siendo válido (no expirado)."""
         if self._memory_cache is None or self._memory_cache_timestamp is None:
             return False
         
@@ -65,14 +65,14 @@ class InstrumentCache:
     
     def _build_lookups(self, cache_data: Dict):
         """
-        Build fast lookup structures from cache data.
+        Construye estructuras de búsqueda rápidas a partir de los datos de caché.
         
         Args:
-            cache_data: Cache data with instruments list
+            cache_data: Datos de caché que contienen la lista de instrumentos
         """
         instruments = cache_data.get('instruments', [])
         
-        # Build symbol → instrument mapping for O(1) lookups
+        # Construir mapping símbolo → instrumento para búsquedas O(1)
         self._symbol_to_instrument = {}
         self._options_symbols = set()
         self._all_symbols = set()
@@ -90,32 +90,32 @@ class InstrumentCache:
                     if cficode in ('OCASPS', 'OPASPS'):
                         self._options_symbols.add(symbol)
         
-        logger.debug(f"Built lookups: {len(self._all_symbols)} symbols, {len(self._options_symbols)} options")
+        logger.debug(f"Estructuras de búsqueda construidas: {len(self._all_symbols)} símbolos, {len(self._options_symbols)} opciones")
     
     def get_cached_instruments(self) -> Optional[Dict[str, any]]:
         """
         Obtener instrumentos en caché si son válidos (no expirados).
         
         Usa caché multi-nivel:
-        1. Memory cache (más rápido)
-        2. File cache (si memory expiró)
-        3. Return None si ambos expiraron (caller debe obtener de API)
+        1. Memoria (más rápido)
+        2. Archivo (si memoria expiró)
+        3. Retorna None si ambos expiraron (el caller debe obtenerlos de la API)
         
         Returns:
             Dict con datos de instrumentos o None si el caché es inválido/expirado
         """
-        # NIVEL 1: Check memory cache first (fastest)
+        # NIVEL 1: Verificar primero el caché en memoria (más rápido)
         if self._is_memory_cache_valid():
-            logger.debug("✓ Using MEMORY cache (Level 1)")
+            logger.debug("✓ Usando caché en MEMORIA (Nivel 1)")
             return self._memory_cache
         
         # NIVEL 2: Check file cache
         try:
             if not self.cache_file.exists():
-                logger.debug("✗ No file cache found (Level 2)")
+                logger.debug("✗ No se encontró caché en archivo (Nivel 2)")
                 return None
             
-            # Read cache file
+            # Leer archivo de caché
             with open(self.cache_file, 'r', encoding='utf-8') as f:
                 cache_data = json.load(f)
             
@@ -124,11 +124,11 @@ class InstrumentCache:
             age = datetime.now() - cached_time
             
             if age > timedelta(minutes=self.ttl_minutes):
-                logger.info(f"✗ File cache expired (age: {age.total_seconds()/60:.1f}m > TTL: {self.ttl_minutes}m)")
+                logger.info(f"✗ Caché en archivo expirado (edad: {age.total_seconds()/60:.1f}m > TTL: {self.ttl_minutes}m)")
                 return None
             
             # File cache is valid - load into memory cache
-            logger.info(f"✓ Using FILE cache (Level 2) - loading to memory (age: {age.total_seconds()/60:.1f}m, {len(cache_data.get('instruments', []))} instruments)")
+            logger.info(f"✓ Usando caché de ARCHIVO (Nivel 2) - cargando en memoria (edad: {age.total_seconds()/60:.1f}m, {len(cache_data.get('instruments', []))} instrumentos)")
             self._memory_cache = cache_data
             self._memory_cache_timestamp = datetime.now()
             
@@ -138,16 +138,16 @@ class InstrumentCache:
             return cache_data
             
         except Exception as e:
-            logger.error(f"Error reading instrument cache: {e}")
+            logger.error(f"Error leyendo caché de instrumentos: {e}")
             return None
     
     def save_instruments(self, instruments: List[Dict], metadata: Optional[Dict] = None):
         """
-        Save instruments to cache (both memory and file).
+        Guarda instrumentos en caché (memoria y archivo).
         
         Args:
-            instruments: List of instrument dictionaries from pyRofex
-            metadata: Optional metadata to store with cache
+            instruments: Lista de diccionarios de instrumentos desde pyRofex
+            metadata: Metadata opcional para almacenar con el caché
         """
         try:
             cache_data = {
@@ -158,35 +158,35 @@ class InstrumentCache:
                 'metadata': metadata or {}
             }
             
-            # Save to MEMORY cache (Level 1)
+            # Guardar en caché de MEMORIA (Nivel 1)
             self._memory_cache = cache_data
             self._memory_cache_timestamp = datetime.now()
             
-            # Build fast lookup structures
+            # Construir estructuras de búsqueda rápidas
             self._build_lookups(cache_data)
             
-            # Save to FILE cache (Level 2)
+            # Guardar en caché de ARCHIVO (Nivel 2)
             with open(self.cache_file, 'w', encoding='utf-8') as f:
                 json.dump(cache_data, f, indent=2, ensure_ascii=False)
             
-            logger.info(f"✓ Saved {len(instruments)} instruments to MEMORY + FILE cache")
+            logger.info(f"✓ Guardados {len(instruments)} instrumentos en caché (MEMORIA + ARCHIVO)")
             
         except Exception as e:
-            logger.error(f"Error saving instrument cache: {e}")
+            logger.error(f"Error guardando caché de instrumentos: {e}")
     
     def get_instrument_symbols(self) -> Set[str]:
         """
-        Get set of valid instrument symbols from cache.
-        Uses pre-built lookup for O(1) performance.
+        Obtiene el set de símbolos válidos de instrumentos desde el caché.
+        Usa estructuras pre-construidas para rendimiento O(1).
         
         Returns:
-            Set of instrument symbols (tickers)
+            Set de símbolos de instrumentos (tickers)
         """
         # Use pre-built lookup if available (memory cache loaded)
         if self._all_symbols is not None:
             return self._all_symbols
         
-        # Fallback to building from cache data
+        # Reintento: construir desde datos de caché
         cache_data = self.get_cached_instruments()
         if not cache_data:
             return set()
@@ -197,10 +197,10 @@ class InstrumentCache:
         for instrument in instruments:
             # Handle different instrument formats
             if isinstance(instrument, str):
-                # Already a symbol string
+                # Ya es una cadena símbolo
                 symbols.add(instrument)
             elif isinstance(instrument, dict):
-                # pyRofex instruments have 'symbol' or 'instrumentId' field
+                # Los instrumentos de pyRofex pueden tener 'symbol' o 'instrumentId'
                 symbol = instrument.get('symbol') or instrument.get('instrumentId', {}).get('symbol')
                 if symbol:
                     symbols.add(symbol)
@@ -209,27 +209,27 @@ class InstrumentCache:
     
     def is_valid_instrument(self, symbol: str) -> bool:
         """
-        Check if symbol is a valid instrument.
+        Verifica si un símbolo es un instrumento válido.
         
         Args:
-            symbol: Symbol to validate
+            symbol: Símbolo a validar
             
         Returns:
-            True if symbol exists in cached instruments
+            True si el símbolo existe en el caché de instrumentos
         """
         valid_symbols = self.get_instrument_symbols()
         return symbol in valid_symbols
     
     def get_instrument_by_symbol(self, symbol: str) -> Optional[Dict]:
         """
-        Get full instrument data for a specific symbol.
-        Uses pre-built O(1) lookup for maximum performance.
+        Obtiene los datos completos de un instrumento para un símbolo específico.
+        Usa lookup O(1) pre-construido para máximo rendimiento.
         
         Args:
-            symbol: Symbol to look up
+            symbol: Símbolo a buscar
             
         Returns:
-            Dict with instrument data or None if not found
+            Dict con los datos del instrumento o None si no se encontró
         """
         # Use pre-built O(1) lookup if available (memory cache loaded)
         if self._symbol_to_instrument:
@@ -251,19 +251,19 @@ class InstrumentCache:
     
     def is_option_symbol(self, symbol: str) -> bool:
         """
-        Check if symbol represents an option based on cficode.
-        Uses pre-built O(1) lookup for maximum performance.
+        Verifica si un símbolo representa una opción basado en su cficode.
+        Usa lookup O(1) pre-construido para máximo rendimiento.
         
-        Options have cficode "OCASPS" (CALL) or "OPASPS" (PUT) according to pyRofex API.
-        Relies solely on cache data - no pattern matching fallback.
+        Las opciones tienen cficode "OCASPS" (CALL) o "OPASPS" (PUT) según la API de pyRofex.
+        Depende únicamente de los datos en caché - sin fallback por patrones.
         
         Args:
-            symbol: Symbol to check
+            symbol: Símbolo a chequear
             
         Returns:
-            True if symbol is an option
+            True si el símbolo es una opción
         """
-        # Use pre-built O(1) lookup if available (fastest)
+        # Usar lookup O(1) pre-construido si está disponible (más rápido)
         if self._options_symbols is not None and len(self._options_symbols) > 0:
             return symbol in self._options_symbols
         
@@ -271,7 +271,7 @@ class InstrumentCache:
         instrument = self.get_instrument_by_symbol(symbol)
         
         if instrument:
-            # Check cficode - options have "OCASPS" (CALL) or "OPASPS" (PUT)
+            # Verificar cficode - las opciones tienen "OCASPS" (CALL) o "OPASPS" (PUT)
             cficode = instrument.get('cficode', '')
             if cficode in ('OCASPS', 'OPASPS'):
                 return True
@@ -280,17 +280,17 @@ class InstrumentCache:
     
     def get_options_symbols(self) -> Set[str]:
         """
-        Get set of all option symbols from cache.
-        Uses pre-built O(1) lookup for maximum performance.
+        Obtiene el conjunto de todos los símbolos de opciones desde el caché.
+        Usa lookup O(1) pre-construido para máximo rendimiento.
         
         Returns:
-            Set of option symbols
+            Set de símbolos de opciones
         """
         # Use pre-built lookup if available (fastest)
         if self._options_symbols is not None:
             return self._options_symbols
         
-        # Fallback to building from cache data
+        # Reintento: construir desde datos de caché
         cache_data = self.get_cached_instruments()
         if not cache_data:
             return set()
@@ -300,7 +300,7 @@ class InstrumentCache:
         
         for instrument in instruments:
             if isinstance(instrument, dict):
-                # Check if it's an option (CALL or PUT)
+                # Verificar si es una opción (CALL o PUT)
                 cficode = instrument.get('cficode', '')
                 if cficode in ('OCASPS', 'OPASPS'):
                     symbol = instrument.get('instrumentId', {}).get('symbol')
@@ -310,7 +310,7 @@ class InstrumentCache:
         return options_symbols
     
     def clear_cache(self):
-        """Clear both memory and file cache."""
+        """Limpia el caché en memoria y en archivo."""
         try:
             # Clear memory cache
             self._memory_cache = None
@@ -322,18 +322,18 @@ class InstrumentCache:
             # Clear file cache
             if self.cache_file.exists():
                 self.cache_file.unlink()
-                logger.info("✓ Cleared MEMORY + FILE cache")
+                logger.info("✓ Caché LIMPIADO: MEMORIA + ARCHIVO")
             else:
-                logger.info("✓ Cleared MEMORY cache")
+                logger.info("✓ Caché LIMPIADO: MEMORIA")
         except Exception as e:
-            logger.error(f"Error clearing cache: {e}")
+            logger.error(f"Error limpiando caché: {e}")
     
     def get_cache_stats(self) -> Dict[str, any]:
         """
-        Get statistics about cache state and performance.
+        Obtiene estadísticas sobre el estado y rendimiento del caché.
         
         Returns:
-            Dict with cache statistics
+            Dict con estadísticas del caché
         """
         stats = {
             'memory_cache_active': self._memory_cache is not None,

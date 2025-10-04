@@ -1,20 +1,16 @@
 """
-Configuration management module for EPGB Options.
+Módulo de gestión de configuración para EPGB Options.
 
-This module provides centralized configuration management with 
-environment variable support using python-dotenv.
+Este módulo proporciona gestión centralizada de la configuración con
+soporte para variables de entorno usando python-dotenv.
 """
 
 # Import all configuration variables and functions
 try:
-    from .excel_config import (
-        EXCEL_FILE, EXCEL_PATH, SHEET_HOMEBROKER, SHEET_TICKERS,
-        validate_excel_config
-    )
-    from .pyrofex_config import (
-        ENVIRONMENT, API_URL, WS_URL, USER, PASSWORD, ACCOUNT,
-        validate_pyRofex_config
-    )
+    from .excel_config import (EXCEL_FILE, EXCEL_PATH, SHEET_HOMEBROKER,
+                               SHEET_TICKERS, validate_excel_config)
+    from .pyrofex_config import (ACCOUNT, API_URL, ENVIRONMENT, PASSWORD, USER,
+                                 WS_URL, validate_pyRofex_config)
     
     __all__ = [
         # Excel configuration
@@ -28,5 +24,5 @@ try:
     
 except ImportError as e:
     # Graceful fallback if config modules are not available
-    print(f"Warning: Could not import configuration modules: {e}")
+    print(f"Advertencia: No se pudieron importar los módulos de configuración: {e}")
     __all__ = []

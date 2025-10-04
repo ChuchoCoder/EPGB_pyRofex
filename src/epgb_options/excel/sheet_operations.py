@@ -28,7 +28,7 @@ class SheetOperations:
         
         Args:
             workbook: Objeto Workbook de xlwings
-            instrument_cache: Optional InstrumentCache instance for option detection
+            instrument_cache: Instancia opcional de InstrumentCache para detección de opciones
         """
         self.workbook = workbook
         self.instrument_cache = instrument_cache
@@ -40,54 +40,54 @@ class SheetOperations:
     
     def set_instrument_cache(self, instrument_cache):
         """
-        Set the instrument cache for option detection.
+        Establecer el caché de instrumentos para detección de opciones.
         
         Args:
-            instrument_cache: InstrumentCache instance
+            instrument_cache: Instancia de InstrumentCache
         """
         self.instrument_cache = instrument_cache
-        logger.debug("Instrument cache set for option detection")
+        logger.debug("Caché de instrumentos configurado para detección de opciones")
     
     def read_range(self, sheet_name: str, range_address: str) -> Any:
         """
-        Read data from Excel range.
+        Leer datos de un rango de Excel.
         
         Args:
-            sheet_name: Name of the sheet
-            range_address: Excel range address (e.g., 'A1:C10')
+            sheet_name: Nombre de la hoja
+            range_address: Dirección del rango de Excel (ej., 'A1:C10')
             
         Returns:
-            Any: Data from the range
+            Any: Datos del rango
         """
         try:
             sheet = self.workbook.sheets(sheet_name)
             data = sheet.range(range_address).value
-            logger.debug(f"Read data from {sheet_name}!{range_address}")
+            logger.debug(f"Datos leídos de {sheet_name}!{range_address}")
             return data
         except Exception as e:
-            logger.error(f"Error reading range {sheet_name}!{range_address}: {e}")
+            logger.error(f"Error al leer el rango {sheet_name}!{range_address}: {e}")
             return None
     
     def write_range(self, sheet_name: str, range_address: str, data: Any) -> bool:
         """
-        Write data to Excel range.
+        Escribir datos en un rango de Excel.
         
         Args:
-            sheet_name: Name of the sheet
-            range_address: Excel range address
-            data: Data to write
+            sheet_name: Nombre de la hoja
+            range_address: Dirección del rango de Excel
+            data: Datos a escribir
             
         Returns:
-            bool: True if successful, False otherwise
+            bool: True si fue exitoso, False en caso contrario
         """
         try:
             sheet = self.workbook.sheets(sheet_name)
             sheet.range(range_address).value = data
-            logger.debug(f"Wrote data to {sheet_name}!{range_address}")
+            logger.debug(f"Datos escritos en {sheet_name}!{range_address}")
             self.update_stats['updates_performed'] += 1
             return True
         except Exception as e:
-            logger.error(f"Error writing to range {sheet_name}!{range_address}: {e}")
+            logger.error(f"Error al escribir en el rango {sheet_name}!{range_address}: {e}")
             self.update_stats['errors'] += 1
             return False
     
@@ -95,25 +95,25 @@ class SheetOperations:
                                   start_cell: str = 'A1', include_index: bool = True,
                                   include_header: bool = True) -> bool:
         """
-        Write DataFrame to Excel sheet.
+        Escribir DataFrame en una hoja de Excel.
         
         Args:
-            sheet_name: Name of the sheet
-            df: DataFrame to write
-            start_cell: Starting cell for the data
-            include_index: Whether to include DataFrame index
-            include_header: Whether to include DataFrame header
+            sheet_name: Nombre de la hoja
+            df: DataFrame a escribir
+            start_cell: Celda inicial para los datos
+            include_index: Si se debe incluir el índice del DataFrame
+            include_header: Si se debe incluir el encabezado del DataFrame
             
         Returns:
-            bool: True if successful, False otherwise
+            bool: True si fue exitoso, False en caso contrario
         """
         try:
             if not validate_pandas_dataframe(df):
-                logger.error("Invalid DataFrame for sheet update")
+                logger.error("DataFrame inválido para actualización de hoja")
                 return False
             
             if df.empty:
-                logger.warning("Empty DataFrame - nothing to update")
+                logger.warning("DataFrame vacío - nada que actualizar")
                 return True
             
             # Clean DataFrame for Excel compatibility
@@ -127,12 +127,12 @@ class SheetOperations:
                                            index=include_index, 
                                            header=include_header).value = clean_df
             
-            logger.info(f"Updated {sheet_name} with {len(clean_df)} rows of data")
+            logger.info(f"Actualizada {sheet_name} con {len(clean_df)} filas de datos")
             self.update_stats['updates_performed'] += 1
             return True
             
         except Exception as e:
-            logger.error(f"Error updating DataFrame to {sheet_name}: {e}")
+            logger.error(f"Error al actualizar DataFrame en {sheet_name}: {e}")
             self.update_stats['errors'] += 1
             return False
     
@@ -140,30 +140,30 @@ class SheetOperations:
                                                homebroker_sheet_name: str,
                                                cauciones_df: pd.DataFrame = None) -> bool:
         """
-        Update market data to HomeBroker sheet with specific formatting.
-        Uses bulk range update for maximum performance.
+        Actualizar datos de mercado en la hoja HomeBroker con formato específico.
+        Utiliza actualización de rango masiva para máxima performance.
         
         Args:
-            df: DataFrame with market data (excluding cauciones)
-            homebroker_sheet_name: Name of the HomeBroker sheet
-            cauciones_df: Optional DataFrame with cauciones data (updates right table only)
+            df: DataFrame con datos de mercado (excluyendo cauciones)
+            homebroker_sheet_name: Nombre de la hoja HomeBroker
+            cauciones_df: DataFrame opcional con datos de cauciones (actualiza solo tabla derecha)
             
         Returns:
-            bool: True if successful, False otherwise
+            bool: True si fue exitoso, False en caso contrario
         """
         try:
             if df.empty:
-                logger.warning("No market data to update")
+                logger.warning("No hay datos de mercado para actualizar")
                 return True
             
-            logger.debug(f"Updating market data to {homebroker_sheet_name}")
+            logger.debug(f"Actualizando datos de mercado en {homebroker_sheet_name}")
             
             # DEBUG: Log DataFrame state for first few updates
             if self.update_stats['updates_performed'] < 2:
                 sample_symbols = df.index[:3].tolist()
-                logger.info(f"DataFrame sample (first 3 symbols): {sample_symbols}")
+                logger.debug(f"Muestra de DataFrame (primeros 3 símbolos): {sample_symbols}")
                 for sym in sample_symbols:
-                    logger.info(f"  {sym}: bid={df.loc[sym, 'bid']}, ask={df.loc[sym, 'ask']}, last={df.loc[sym, 'last']}")
+                    logger.debug(f"  {sym}: bid={df.loc[sym, 'bid']}, ask={df.loc[sym, 'ask']}, last={df.loc[sym, 'last']}")
             
             # Get HomeBroker sheet
             homebroker_sheet = self.workbook.sheets(homebroker_sheet_name)
@@ -182,22 +182,48 @@ class SheetOperations:
                     symbols = [symbols] if symbols else []
                 
                 self._symbol_row_cache = {}
+                duplicate_rows = []  # Track rows with duplicate symbols
+                
                 for idx, cell_value in enumerate(symbols):
                     if cell_value and str(cell_value).strip():
                         # Row index is idx + 2 (skip header at row 1, and enumerate starts at 0)
-                        # Cell contains cleaned symbol (e.g., "GGAL - 24hs"), restore prefix for cache key
-                        full_symbol = restore_symbol_prefix(str(cell_value).strip())
-                        self._symbol_row_cache[full_symbol] = idx + 2
+                        # Cell contains cleaned symbol (e.g., "GGAL - 24hs" or "GFGC73354O")
+                        display_symbol = str(cell_value).strip()
+                        
+                        # Restore prefix first
+                        full_symbol = restore_symbol_prefix(display_symbol)
+                        
+                        # Check if symbol already has a suffix (e.g., " - 24hs", " - 48hs", etc.)
+                        has_suffix = any(full_symbol.endswith(suffix) for suffix in 
+                                       [" - 24hs", " - 48hs", " - 72hs", " - CI", " - T0", " - T1", " - T2"])
+                        
+                        # If no suffix present and not a caucion (PESOS - XD), add " - 24hs"
+                        # This handles options that had their suffix stripped for display
+                        if not has_suffix and "PESOS" not in full_symbol:
+                            full_symbol = f"{full_symbol} - 24hs"
+                        
+                        # Check for duplicates
+                        if full_symbol in self._symbol_row_cache:
+                            duplicate_rows.append(idx + 2)
+                            logger.warning(f"Símbolo duplicado detectado: {display_symbol} en fila {idx + 2} (ya existe en fila {self._symbol_row_cache[full_symbol]})")
+                        else:
+                            self._symbol_row_cache[full_symbol] = idx + 2
                 
-                logger.info(f"Built symbol row cache with {len(self._symbol_row_cache)} symbols from Excel")
+                logger.info(f"Caché de filas de símbolos construido con {len(self._symbol_row_cache)} símbolos desde Excel")
+                
+                # If duplicates found, clean them up
+                if duplicate_rows:
+                    logger.warning(f"Encontradas {len(duplicate_rows)} símbolos duplicados en la hoja de Excel")
+                    self._remove_duplicate_rows(homebroker_sheet, duplicate_rows)
+                    logger.info(f"✅ Eliminadas {len(duplicate_rows)} filas duplicadas de Excel")
             
             # Always check for missing symbols (not just on first call)
             # This ensures options (or any new symbols) added later are also populated
             missing_symbols = [sym for sym in df.index if sym not in self._symbol_row_cache]
             if missing_symbols:
-                logger.info(f"Auto-populating {len(missing_symbols)} new symbols to HomeBroker sheet...")
+                logger.info(f"Auto-poblando {len(missing_symbols)} símbolos nuevos en la hoja HomeBroker...")
                 self._add_symbols_to_sheet(homebroker_sheet, missing_symbols)
-                logger.info(f"✅ Added {len(missing_symbols)} new symbols to Excel")
+                logger.info(f"✅ Agregados {len(missing_symbols)} símbolos nuevos a Excel")
             
             # BULK UPDATE: Build 2D array for all data at once
             # Columns: B=bid_size, C=bid, D=ask, E=ask_size, F=last, G=change, H=open, I=high, J=low, K=previous_close, L=turnover, M=volume, N=operations, O=datetime
@@ -237,7 +263,7 @@ class SheetOperations:
                 range_address = f'B{min_row}:O{max_row}'
                 homebroker_sheet.range(range_address).value = bulk_data
                 
-                logger.info(f"✅ Bulk updated {len(updates_by_row)} instruments in range {range_address}")
+                logger.info(f"✅ Actualización masiva de {len(updates_by_row)} instrumentos en el rango {range_address}")
             
             # Update cauciones table on the right side (columns R-U) using separate DataFrame
             if cauciones_df is not None and not cauciones_df.empty:
@@ -247,16 +273,16 @@ class SheetOperations:
             return True
             
         except Exception as e:
-            logger.error(f"Error updating market data to HomeBroker sheet: {e}")
+            logger.error(f"Error al actualizar datos de mercado en la hoja HomeBroker: {e}")
             self.update_stats['errors'] += 1
             return False
     
     def _ensure_headers_exist(self, sheet: xw.Sheet):
         """
-        Ensure the HomeBroker sheet has proper headers in row 1.
+        Asegurar que la hoja HomeBroker tenga los encabezados apropiados en la fila 1.
         
         Args:
-            sheet: xlwings Sheet object
+            sheet: Objeto Sheet de xlwings
         """
         try:
             # Check if headers already exist
@@ -271,23 +297,51 @@ class SheetOperations:
             
             # If headers don't match, write them
             if not header_row or header_row[0] != 'symbol':
-                logger.info("Creating headers in HomeBroker sheet...")
+                logger.info("Creando encabezados en la hoja HomeBroker...")
                 sheet.range('A1:O1').value = expected_headers
                 # Optional: Format headers (bold)
                 sheet.range('A1:O1').font.bold = True
-                logger.debug("Headers created successfully")
+                logger.debug("Encabezados creados exitosamente")
                 
         except Exception as e:
-            logger.error(f"Error ensuring headers exist: {e}")
+            logger.error(f"Error al asegurar que existan los encabezados: {e}")
+            raise
+    
+    def _remove_duplicate_rows(self, sheet: xw.Sheet, row_numbers: list):
+        """
+        Eliminar filas duplicadas de la hoja de Excel.
+        
+        Args:
+            sheet: Objeto Sheet de xlwings
+            row_numbers: Lista de números de fila a eliminar (debe estar ordenada descendentemente)
+        """
+        try:
+            if not row_numbers:
+                return
+            
+            # Sort in descending order to delete from bottom to top
+            # This prevents row number shifting during deletion
+            sorted_rows = sorted(row_numbers, reverse=True)
+            
+            logger.info(f"Eliminando {len(sorted_rows)} filas duplicadas de Excel...")
+            
+            for row_num in sorted_rows:
+                # Delete the entire row
+                sheet.range(f'{row_num}:{row_num}').api.Delete()
+            
+            logger.debug(f"Eliminadas exitosamente {len(sorted_rows)} filas duplicadas")
+            
+        except Exception as e:
+            logger.error(f"Error al eliminar filas duplicadas: {e}")
             raise
     
     def _add_symbols_to_sheet(self, sheet: xw.Sheet, symbols: list):
         """
-        Add new symbols to the HomeBroker sheet.
+        Agregar nuevos símbolos a la hoja HomeBroker.
         
         Args:
-            sheet: xlwings Sheet object
-            symbols: List of symbols to add
+            sheet: Objeto Sheet de xlwings
+            symbols: Lista de símbolos a agregar
         """
         try:
             # Find the last row with data in column A (starting from row 2, since row 1 is header)
@@ -331,35 +385,35 @@ class SheetOperations:
             end_row = start_row + len(symbols) - 1
             sheet.range(f'A{start_row}:O{end_row}').value = symbol_data
             
-            logger.debug(f"Added {len(symbols)} symbols to sheet starting at row {start_row}")
+            logger.debug(f"Agregados {len(symbols)} símbolos a la hoja comenzando en fila {start_row}")
             
         except Exception as e:
-            logger.error(f"Error adding symbols to sheet: {e}")
+            logger.error(f"Error al agregar símbolos a la hoja: {e}")
             raise
     
     def _update_cauciones_table(self, sheet: xw.Sheet, df: pd.DataFrame):
         """
-        Update the cauciones table on the right side of the HomeBroker sheet.
+        Actualizar la tabla de cauciones en el lado derecho de la hoja HomeBroker.
         
-        The table has Plazo (Period) in column R starting from row 2:
-        - Row 2: "1 día" -> MERV - XMEV - PESOS - 1D (if exists)
-        - Row 4: "3 días" -> MERV - XMEV - PESOS - 3D
-        - Row 5: "4 días" -> MERV - XMEV - PESOS - 4D
+        La tabla tiene Plazo (Período) en la columna R comenzando desde la fila 2:
+        - Fila 2: "1 día" -> MERV - XMEV - PESOS - 1D (si existe)
+        - Fila 4: "3 días" -> MERV - XMEV - PESOS - 3D
+        - Fila 5: "4 días" -> MERV - XMEV - PESOS - 4D
         - etc.
         
-        Columns to update:
-        - R: Plazo (period like "1 día", "3 días" - not updated, already in Excel)
-        - S: Vencimiento (maturity date = Today + X days)
-        - T: Tasa (last price)
-        - U: Monto $ (volume)
+        Columnas a actualizar:
+        - R: Plazo (período como "1 día", "3 días" - no se actualiza, ya está en Excel)
+        - S: Vencimiento (fecha de vencimiento = Hoy + X días)
+        - T: Tasa (último precio)
+        - U: Monto $ (volumen)
         - V: Monto Tomador (bid_size)
         - W: Tasa Tomadora (bid)
         - X: Tasa Colocadora (ask)
         - Y: Monto Colocador (ask_size)
         
         Args:
-            sheet: xlwings Sheet object
-            df: DataFrame with market data
+            sheet: Objeto Sheet de xlwings
+            df: DataFrame con datos de mercado
         """
         try:
             from datetime import datetime, timedelta
@@ -458,20 +512,20 @@ class SheetOperations:
                 range_address = f'S{min_row}:Y{max_row}'
                 sheet.range(range_address).value = bulk_data
                 
-                logger.debug(f"✅ Bulk updated {len(updates)} cauciones in range {range_address}")
+                logger.debug(f"✅ Actualización masiva de {len(updates)} cauciones en el rango {range_address}")
             
         except Exception as e:
-            logger.error(f"Error updating cauciones table: {e}")
+            logger.error(f"Error al actualizar la tabla de cauciones: {e}")
             # Don't raise - this is a non-critical update
     
     def _update_single_instrument_row(self, sheet: xw.Sheet, symbol: str, data: pd.Series):
         """
-        Update a single instrument row in the sheet.
+        Actualizar una fila individual de instrumento en la hoja.
         
         Args:
-            sheet: xlwings Sheet object
-            symbol: Instrument symbol
-            data: Market data for the instrument
+            sheet: Objeto Sheet de xlwings
+            symbol: Símbolo del instrumento
+            data: Datos de mercado para el instrumento
         """
         try:
             # Use cached row mapping instead of searching column A every time
@@ -488,7 +542,7 @@ class SheetOperations:
                         break
             
             if row_index is None:
-                logger.warning(f"Symbol '{symbol}' not found in sheet column A")
+                logger.warning(f"Símbolo '{symbol}' no encontrado en la columna A de la hoja")
                 return
             
             # Define column mapping (adjust based on your Excel structure)
@@ -523,40 +577,40 @@ class SheetOperations:
             # Single batch write for entire row (B:O)
             sheet.range(f'B{row_index}:O{row_index}').value = row_values
             
-            logger.info(f"✅ Updated {symbol} at row {row_index} - bid={data.get('bid')}, ask={data.get('ask')}, last={data.get('last')}")
+            logger.info(f"✅ Actualizado {symbol} en fila {row_index} - bid={data.get('bid')}, ask={data.get('ask')}, last={data.get('last')}")
             
         except Exception as e:
-            logger.warning(f"Error updating single row for {symbol}: {e}")
+            logger.warning(f"Error al actualizar fila individual para {symbol}: {e}")
     
     def clear_range(self, sheet_name: str, range_address: str) -> bool:
         """
-        Clear data from Excel range.
+        Limpiar datos de un rango de Excel.
         
         Args:
-            sheet_name: Name of the sheet
-            range_address: Excel range address to clear
+            sheet_name: Nombre de la hoja
+            range_address: Dirección del rango de Excel a limpiar
             
         Returns:
-            bool: True if successful, False otherwise
+            bool: True si fue exitoso, False en caso contrario
         """
         try:
             sheet = self.workbook.sheets(sheet_name)
             sheet.range(range_address).clear_contents()
-            logger.debug(f"Cleared range {sheet_name}!{range_address}")
+            logger.debug(f"Rango limpiado {sheet_name}!{range_address}")
             return True
         except Exception as e:
-            logger.error(f"Error clearing range {sheet_name}!{range_address}: {e}")
+            logger.error(f"Error al limpiar el rango {sheet_name}!{range_address}: {e}")
             return False
     
     def get_sheet_info(self, sheet_name: str) -> Dict[str, Any]:
         """
-        Get information about a sheet.
+        Obtener información sobre una hoja.
         
         Args:
-            sheet_name: Name of the sheet
+            sheet_name: Nombre de la hoja
             
         Returns:
-            dict: Sheet information
+            dict: Información de la hoja
         """
         try:
             sheet = self.workbook.sheets(sheet_name)
@@ -567,21 +621,21 @@ class SheetOperations:
                 'exists': True
             }
         except Exception as e:
-            logger.error(f"Error getting sheet info for {sheet_name}: {e}")
+            logger.error(f"Error al obtener información de la hoja {sheet_name}: {e}")
             return {'exists': False, 'error': str(e)}
     
     def format_range(self, sheet_name: str, range_address: str, 
                      format_dict: Dict[str, Any]) -> bool:
         """
-        Apply formatting to Excel range.
+        Aplicar formato a un rango de Excel.
         
         Args:
-            sheet_name: Name of the sheet
-            range_address: Excel range address
-            format_dict: Dictionary with formatting options
+            sheet_name: Nombre de la hoja
+            range_address: Dirección del rango de Excel
+            format_dict: Diccionario con opciones de formato
             
         Returns:
-            bool: True if successful, False otherwise
+            bool: True si fue exitoso, False en caso contrario
         """
         try:
             sheet = self.workbook.sheets(sheet_name)
@@ -599,26 +653,26 @@ class SheetOperations:
                     range_obj.color = format_value
                 # Add more formatting options as needed
             
-            logger.debug(f"Applied formatting to {sheet_name}!{range_address}")
+            logger.debug(f"Formato aplicado a {sheet_name}!{range_address}")
             return True
             
         except Exception as e:
-            logger.error(f"Error formatting range {sheet_name}!{range_address}: {e}")
+            logger.error(f"Error al aplicar formato al rango {sheet_name}!{range_address}: {e}")
             return False
     
     def copy_range(self, source_sheet: str, source_range: str,
                    dest_sheet: str, dest_range: str) -> bool:
         """
-        Copy data from one range to another.
+        Copiar datos de un rango a otro.
         
         Args:
-            source_sheet: Source sheet name
-            source_range: Source range address
-            dest_sheet: Destination sheet name
-            dest_range: Destination range address
+            source_sheet: Nombre de la hoja origen
+            source_range: Dirección del rango origen
+            dest_sheet: Nombre de la hoja destino
+            dest_range: Dirección del rango destino
             
         Returns:
-            bool: True if successful, False otherwise
+            bool: True si fue exitoso, False en caso contrario
         """
         try:
             # Get source data
@@ -630,20 +684,20 @@ class SheetOperations:
             return self.write_range(dest_sheet, dest_range, source_data)
             
         except Exception as e:
-            logger.error(f"Error copying range: {e}")
+            logger.error(f"Error al copiar rango: {e}")
             return False
     
     def get_update_stats(self) -> Dict[str, Any]:
         """
-        Get update statistics.
+        Obtener estadísticas de actualización.
         
         Returns:
-            dict: Update statistics
+            dict: Estadísticas de actualización
         """
         return self.update_stats.copy()
     
     def reset_stats(self):
-        """Reset update statistics."""
+        """Reiniciar estadísticas de actualización."""
         self.update_stats = {
             'updates_performed': 0,
             'errors': 0,

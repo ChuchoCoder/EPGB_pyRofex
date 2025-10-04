@@ -1,8 +1,8 @@
 """
-EPGB Options Market Data Application
+Aplicación de Datos de Mercado de Opciones EPGB
 
-A Python application for fetching and managing options market data 
-with Excel integration using pyRofex API.
+Una aplicación en Python para obtener y gestionar datos de mercado de opciones
+con integración a Excel usando la API de pyRofex.
 """
 
 __version__ = "1.0.0"

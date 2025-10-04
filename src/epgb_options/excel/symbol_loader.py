@@ -43,19 +43,8 @@ class SymbolLoader:
         'panel_general': 'M2:M500' # Panel General: Columna M
     }
     
-    # Lista de cauciones (repos) predefinidas - sólo símbolos válidos desde la API de pyRofex
-    # Nota: 1D, 2D, 7D, 8D, 9D no están disponibles en la API
-    CAUCIONES = [
-        "MERV - XMEV - PESOS - 3D",
-        "MERV - XMEV - PESOS - 4D",
-        "MERV - XMEV - PESOS - 5D",
-        "MERV - XMEV - PESOS - 6D",
-        "MERV - XMEV - PESOS - 10D",
-        "MERV - XMEV - PESOS - 11D",
-        "MERV - XMEV - PESOS - 12D",
-        "MERV - XMEV - PESOS - 13D",
-        "MERV - XMEV - PESOS - 14D",
-    ]
+    # Lista de cauciones (repos) predefinidas - generadas desde 1D hasta 32D
+    CAUCIONES = [f"MERV - XMEV - PESOS - {i}D" for i in range(1, 33)]
     
     def __init__(self, tickers_sheet: xw.Sheet):
         """

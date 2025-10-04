@@ -21,14 +21,14 @@ logger = get_logger(__name__)
 
 
 class WebSocketHandler:
-    """Maneja conexiones de WebSocket y procesamiento de mensajes."""
+    """Maneja conexiones de WebSocket y el procesamiento de mensajes."""
     
     def __init__(self, instrument_cache: Optional[InstrumentCache] = None):
         """
         Inicializar manejador de WebSocket.
         
         Args:
-            instrument_cache: Optional InstrumentCache instance for accurate instrument classification
+            instrument_cache: Instancia opcional de InstrumentCache para clasificación precisa de instrumentos
         """
         self.is_connected = False
         self.connection_stats = {
@@ -62,9 +62,9 @@ class WebSocketHandler:
     
     def market_data_handler(self, message: Dict[str, Any]):
         """
-        Handle market data messages from pyRofex WebSocket.
+        Manejar mensajes de datos de mercado desde el WebSocket de pyRofex.
         
-        Expected pyRofex message structure:
+        Estructura esperada del mensaje de pyRofex:
         {
             "symbol": "MERV - XMEV - YPFD - 24hs",
             "bid": 150.50,
@@ -84,26 +84,26 @@ class WebSocketHandler:
         }
         
         Args:
-            message: Market data message from pyRofex
+            message: Mensaje de datos de mercado desde pyRofex
         """
         self.connection_stats['messages_received'] += 1
         self.connection_stats['last_message_time'] = datetime.now()
         
         # DEBUG: Log raw message structure for first few messages
         if self.connection_stats['messages_received'] <= 3:
-            logger.info(f"RAW MESSAGE #{self.connection_stats['messages_received']}: {message}")
+            logger.debug(f"MENSAJE CRUDO #{self.connection_stats['messages_received']}: {message}")
         
         try:
             # Validate message structure
             if not validate_market_data(message):
-                logger.warning(f"Invalid market data message: {message}")
+                logger.warning(f"Mensaje de datos de mercado inválido: {message}")
                 self.connection_stats['errors'] += 1
                 return
             
             # Extract symbol
             symbol = message.get('instrumentId', {}).get('symbol')
             if not symbol:
-                logger.warning("No symbol in market data message")
+                logger.warning("No hay símbolo en el mensaje de datos de mercado")
                 return
             
             # Process market data
@@ -117,55 +117,55 @@ class WebSocketHandler:
                 try:
                     self.on_data_update(symbol, message)
                 except Exception as e:
-                    logger.error(f"Error in update callback: {e}")
+                    logger.error(f"Error en callback de actualización: {e}")
         
         except Exception as e:
             self._handle_processing_error(e, message)
     
     def _process_market_data(self, symbol: str, message: Dict[str, Any]):
-        """Process market data and update appropriate DataFrame."""
+        """Procesar datos de mercado y actualizar el DataFrame correspondiente."""
         
         # Extract market data fields
         market_data = message.get('marketData', {})
         
         # DEBUG: Log market data extraction for first symbol
         if self.connection_stats['messages_processed'] < 2:
-            logger.info(f"Processing symbol: {symbol}")
-            logger.info(f"Market data fields: {market_data}")
-        
-        # Extract nested fields (pyRofex 0.5.0 uses nested structures)
-        # Field mapping from pyRofex WebSocket message:
-        # BI = BIDS (array of {price, size})
-        # OF = OFFERS (array of {price, size})
+            logger.debug(f"Procesando símbolo: {symbol}")
+            logger.debug(f"Campos de datos de mercado: {market_data}")
+
+        # Extracción de campos anidados (pyRofex 0.5.0 usa estructuras anidadas)
+        # Mapeo de campos del mensaje de WebSocket de pyRofex:
+        # BI = BIDS (array de {price, size})
+        # OF = OFFERS (array de {price, size})
         # LA = LAST trade ({price, size, date})
-        # OP = OPENING_PRICE (number or {price})
-        # CL = CLOSING_PRICE (number or {price})
-        # HI = HIGH_PRICE (number or {price})
-        # LO = LOW_PRICE (number or {price})
-        # EV = TRADE_EFFECTIVE_VOLUME (number) -> turnover column
-        # NV = NOMINAL_VOLUME (number) -> volume column
-        # TC = TRADE_COUNT (number) -> operations column (number of trades)
-        # SE = SETTLEMENT_PRICE (number or {price})
-        # OI = OPEN_INTEREST (number)
-        
+        # OP = OPENING_PRICE (número o {price})
+        # CL = CLOSING_PRICE (número o {price})
+        # HI = HIGH_PRICE (número o {price})
+        # LO = LOW_PRICE (número o {price})
+        # EV = TRADE_EFFECTIVE_VOLUME (número) -> columna turnover
+        # NV = NOMINAL_VOLUME (número) -> columna volume
+        # TC = TRADE_COUNT (número) -> columna operations (cantidad de operaciones)
+        # SE = SETTLEMENT_PRICE (número o {price})
+        # OI = OPEN_INTEREST (número)
+
         bids = market_data.get('BI', [])
         offers = market_data.get('OF', [])
         last_trade = market_data.get('LA', {})
-        
+
         # Extract best bid/offer (first level in the book)
         best_bid = bids[0] if bids and isinstance(bids, list) else {}
         best_offer = offers[0] if offers and isinstance(offers, list) else {}
-        
+
         # Helper function to extract price from either number or dict
         def extract_price(value):
             if isinstance(value, dict):
                 return safe_float_conversion(value.get('price'))
             return safe_float_conversion(value)
-        
+
         # Extract key prices for change calculation
         last_price = safe_float_conversion(last_trade.get('price') if isinstance(last_trade, dict) else None)
         previous_close = extract_price(market_data.get('CL'))
-        
+
         # Calculate change percentage: (last / previous_close) - 1
         change = 0.0
         if last_price and previous_close and previous_close != 0:
@@ -188,14 +188,14 @@ class WebSocketHandler:
             'operations': safe_int_conversion(market_data.get('TC')),      # TRADE_COUNT
             'datetime': pd.Timestamp.now()
         }
-        
-        # DEBUG: Log extracted values
+
+        # DEBUG: Registrar valores extraídos
         if self.connection_stats['messages_processed'] < 2:
-            logger.info(f"Extracted data row: {data_row}")
-        
+            logger.debug(f"Fila de datos extraída: {data_row}")
+
         # Create DataFrame for this update
         update_df = pd.DataFrame([data_row], index=[symbol])
-        
+
         # Determine which DataFrame to update based on symbol characteristics
         if self._is_options_symbol(symbol):
             self._update_options_data(symbol, update_df)
@@ -203,31 +203,31 @@ class WebSocketHandler:
             self._update_cauciones_data(symbol, update_df)
         else:
             self._update_securities_data(symbol, update_df)
-        
-        logger.debug(f"Updated {symbol}: last={data_row['last']}, bid={data_row['bid']}, ask={data_row['ask']}")
+
+        logger.debug(f"Actualizado {symbol}: last={data_row['last']}, bid={data_row['bid']}, ask={data_row['ask']}")
     
     def _is_options_symbol(self, symbol: str) -> bool:
         """
-        Determine if symbol represents an options contract.
+        Determina si el símbolo representa un contrato de opción.
         
-        Uses InstrumentCache for accurate classification based on cficode.
-        Falls back to pattern matching if cache unavailable.
+        Usa InstrumentCache para una clasificación precisa basada en cficode.
+        Si no hay cache disponible, cae en una comprobación por patrón.
         
         Args:
-            symbol: Symbol to check
+            symbol: Símbolo a verificar
             
         Returns:
-            True if symbol is an option
+            True si el símbolo es una opción
         """
         return self.instrument_cache.is_option_symbol(symbol)
     
     def _is_caucion_symbol(self, symbol: str) -> bool:
-        """Determine if symbol represents a caucion (repo)."""
-        # Cauciones have format "MERV - XMEV - PESOS - XD" where X is the number of days
+        """Determina si el símbolo representa una caución (repo)."""
+        # Las cauciones tienen formato "MERV - XMEV - PESOS - XD" donde X es la cantidad de días
         return 'PESOS' in symbol and symbol.split(' - ')[-1].endswith('D')
     
     def _update_options_data(self, symbol: str, update_df: pd.DataFrame):
-        """Update options DataFrame."""
+        """Actualizar el DataFrame de opciones."""
         if self.options_df is not None and not self.options_df.empty:
             # Rename columns for options compatibility
             update_df = update_df.rename(columns={"bid_size": "bidsize", "ask_size": "asksize"})
@@ -239,10 +239,10 @@ class WebSocketHandler:
                     if col in self.options_df.columns:
                         self.options_df.loc[symbol, col] = update_df.loc[symbol, col]
         else:
-            logger.warning(f"Options DataFrame not initialized for symbol: {symbol}")
+            logger.warning(f"DataFrame de opciones no inicializado para el símbolo: {symbol}")
     
     def _update_securities_data(self, symbol: str, update_df: pd.DataFrame):
-        """Update securities DataFrame.""" 
+        """Actualizar el DataFrame de valores (securities).""" 
         if self.everything_df is not None and not self.everything_df.empty:
             # Use .loc[] assignment instead of .update() to ensure values are set
             if symbol in self.everything_df.index:
@@ -253,28 +253,28 @@ class WebSocketHandler:
                         self.everything_df.loc[symbol, col] = new_value
                         # DEBUG: Log first update to confirm write
                         if self.connection_stats['messages_processed'] <= 3 and col in ['bid', 'ask', 'last']:
-                            logger.info(f"DataFrame UPDATE: {symbol} {col}: {old_value} → {new_value}")
+                            logger.debug(f"DataFrame UPDATE: {symbol} {col}: {old_value} → {new_value}")
             else:
-                logger.warning(f"Symbol '{symbol}' not found in everything_df.index. Index has {len(self.everything_df.index)} symbols.")
+                logger.warning(f"Símbolo '{symbol}' no encontrado en everything_df.index. El índice tiene {len(self.everything_df.index)} símbolos.")
         else:
-            logger.warning(f"Securities DataFrame not initialized for symbol: {symbol}")
+            logger.warning(f"DataFrame de valores no inicializado para el símbolo: {symbol}")
     
     def _update_cauciones_data(self, symbol: str, update_df: pd.DataFrame):
-        """Update cauciones DataFrame (separate from main securities table).""" 
+        """Actualizar DataFrame de cauciones (separado de la tabla principal de valores).""" 
         if self.cauciones_df is not None and not self.cauciones_df.empty:
             # Use .loc[] assignment instead of .update() to ensure values are set
             if symbol in self.cauciones_df.index:
                 for col in update_df.columns:
                     if col in self.cauciones_df.columns:
                         self.cauciones_df.loc[symbol, col] = update_df.loc[symbol, col]
-                logger.debug(f"Updated caucion: {symbol}")
+                logger.debug(f"Caución actualizada: {symbol}")
             else:
-                logger.warning(f"Caucion symbol '{symbol}' not found in cauciones_df.index")
+                logger.warning(f"Símbolo de caución '{symbol}' no encontrado en cauciones_df.index")
         else:
-            logger.warning(f"Cauciones DataFrame not initialized for symbol: {symbol}")
+            logger.warning(f"DataFrame de cauciones no inicializado para el símbolo: {symbol}")
     
     def _handle_processing_error(self, error: Exception, message: Dict[str, Any]):
-        """Handle errors during message processing."""
+        """Manejar errores ocurridos durante el procesamiento de mensajes."""
         self.connection_stats['errors'] += 1
         
         error_context = {
@@ -284,81 +284,80 @@ class WebSocketHandler:
             'symbol': message.get('instrumentId', {}).get('symbol', 'unknown') if isinstance(message, dict) else 'unknown',
             'timestamp': datetime.now().isoformat()
         }
-        
-        logger.error(f"Error processing market data: {error}")
-        logger.error(f"Context: Symbol={error_context['symbol']}, Type={error_context['message_type']}")
-        logger.info("Continuing with processing of other messages - non-critical error")
+        logger.error(f"Error al procesar datos de mercado: {error}")
+        logger.error(f"Contexto: Símbolo={error_context['symbol']}, Tipo={error_context['message_type']}")
+        logger.info("Continuando con el procesamiento de otros mensajes - error no crítico")
         
         # Log detailed error for debugging
         if hasattr(error, '__traceback__'):
             import traceback
-            logger.debug(f"Technical details: {traceback.format_exc()}")
+            logger.debug(f"Detalles técnicos: {traceback.format_exc()}")
     
     def websocket_error_handler(self, error):
-        """Handle WebSocket error messages."""
+        """Manejar mensajes de error del WebSocket."""
         try:
             self.connection_stats['errors'] += 1
-            log_connection_event("WebSocket Error", str(error))
+            log_connection_event("Error WebSocket", str(error))
             
-            logger.error(f"WebSocket error received: {error}")
-            logger.error(f"Error type: {type(error)}")
+            logger.error(f"Error de WebSocket recibido: {error}")
+            logger.error(f"Tipo de error: {type(error)}")
             
             # Safely extract error details
             error_str = str(error).lower()
             
             # Handle different types of errors
             if "authentication" in error_str:
-                logger.error("Authentication error - check credentials")
+                logger.error("Error de autenticación - verificar credenciales")
             elif "connection" in error_str:
-                logger.error("Connection error - check network connectivity")
+                logger.error("Error de conexión - verificar conectividad de red")
             elif isinstance(error, dict) and 'description' in error:
                 desc = str(error.get('description', '')).lower()
                 if "product" in desc:
-                    logger.error(f"Product error - {error['description']}")
+                    logger.error(f"Error de producto - {error['description']}")
                 else:
-                    logger.error(f"Error description: {error['description']}")
+                    logger.error(f"Descripción del error: {error['description']}")
             else:
-                logger.error(f"WebSocket error (raw): {error}")
+                logger.error(f"Error de WebSocket (raw): {error}")
             
             # IMPORTANT: Don't raise exceptions - just log and continue
-            logger.info("Error logged, continuing to listen for market data...")
+            logger.info("Error registrado, continúo escuchando datos de mercado...")
             
         except Exception as e:
             # Catch any errors in error handler to prevent websocket from dying
-            logger.error(f"Exception in websocket_error_handler: {e}")
-            logger.info("Continuing despite error handler exception...")
+            logger.error(f"Excepción en websocket_error_handler: {e}")
+            logger.info("Continuando a pesar de la excepción en el manejador de errores...")
     
     def websocket_exception_handler(self, exception):
-        """Handle WebSocket exceptions."""
+        """Manejar excepciones del WebSocket."""
         try:
             self.connection_stats['errors'] += 1
-            log_connection_event("WebSocket Exception", str(exception))
+            log_connection_event("Excepción WebSocket", str(exception))
             
-            logger.error(f"WebSocket exception: {exception}")
-            logger.error(f"Exception type: {type(exception)}")
+            logger.error(f"Excepción de WebSocket: {exception}")
+            logger.error(f"Tipo de excepción: {type(exception)}")
             
             # Log exception details
             if hasattr(exception, '__traceback__'):
                 import traceback
-                logger.debug(f"Exception traceback: {traceback.format_exc()}")
+                logger.debug(f"Traza de la excepción: {traceback.format_exc()}")
             
             # IMPORTANT: Don't raise exceptions - just log and continue
-            logger.info("Exception logged, continuing to listen for market data...")
+            logger.info("Excepción registrada, continúo escuchando datos de mercado...")
             
         except Exception as e:
             # Catch any errors in exception handler to prevent websocket from dying
-            logger.error(f"Exception in websocket_exception_handler: {e}")
-            logger.info("Continuing despite exception handler error...")
+            logger.error(f"Excepción en websocket_exception_handler: {e}")
+            logger.info("Continuando a pesar del error en el manejador de excepciones...")
     
     def on_error(self, online, error):
-        """Handle general errors."""
+        """Manejar errores generales."""
         self.connection_stats['errors'] += 1
-        log_connection_event("General Error", f"Online: {online}, Error: {error}")
+        log_connection_event("Error general", f"Online: {online}, Error: {error}")
         
-        logger.error(f"General error - Online: {online}, Error: {error}")
+        logger.error(f"Error general - Online: {online}, Error: {error}")
     
     def get_connection_stats(self) -> Dict[str, Any]:
-        """Get connection statistics."""
+        """Obtener estadísticas de conexión."""
         stats = self.connection_stats.copy()
         
         # Add calculated fields

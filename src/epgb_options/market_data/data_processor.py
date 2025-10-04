@@ -74,7 +74,7 @@ class DataProcessor:
             return pd.DataFrame()
     
     def _process_dataframe_quotes(self, quotes_df: pd.DataFrame) -> pd.DataFrame:
-        """Process quotes that are already in DataFrame format."""
+        """Procesar cotizaciones que ya están en formato DataFrame."""
         try:
             # Apply standard transformations
             processed_df = quotes_df.copy()
@@ -95,11 +95,11 @@ class DataProcessor:
             return processed_df
             
         except Exception as e:
-            logger.error(f"Error processing DataFrame quotes: {e}")
+            logger.error(f"Error al procesar cotizaciones en DataFrame: {e}")
             return quotes_df  # Return original if processing fails
     
     def _process_single_quote(self, quote: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Process a single quote message."""
+        """Procesar un mensaje de cotización individual."""
         try:
             # Extract symbol information
             symbol = quote.get('instrumentId', {}).get('symbol', 'UNKNOWN')
@@ -129,21 +129,21 @@ class DataProcessor:
             return processed_quote
             
         except Exception as e:
-            logger.error(f"Error processing single quote: {e}")
+            logger.error(f"Error al procesar cotización individual: {e}")
             return None
     
     def process_repos_data(self, quotes: Any) -> pd.DataFrame:
         """
-        Process repos/cauciones data.
+        Procesar datos de repos/cauciones.
         
         Args:
-            quotes: Repos quotes data
+            quotes: Datos de cotizaciones de repos
             
         Returns:
-            pd.DataFrame: Processed repos data
+            pd.DataFrame: Datos de repos procesados
         """
         try:
-            logger.debug("Processing repos data")
+            logger.debug("Procesando datos de cauciones")
             
             # Similar processing to securities but with repos-specific logic
             if isinstance(quotes, pd.DataFrame):
@@ -164,12 +164,12 @@ class DataProcessor:
                 self.processing_stats['updates_processed'] += len(processed_df)
                 return processed_df
             else:
-                logger.warning("Repos data not in expected DataFrame format")
+                logger.warning("Datos de cauciones no están en el formato DataFrame esperado")
                 return pd.DataFrame()
                 
         except Exception as e:
             self.processing_stats['errors'] += 1
-            logger.error(f"Error processing repos data: {e}")
+            logger.error(f"Error al procesar datos de cauciones: {e}")
             return pd.DataFrame()
     
     def aggregate_market_data(self, data_dict: Dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -193,7 +193,7 @@ class DataProcessor:
                         df_copy['data_source'] = name
                         valid_dataframes.append(df_copy)
                 else:
-                    logger.warning(f"Invalid DataFrame for {name}")
+                    logger.warning(f"DataFrame inválido para {name}")
             
             if valid_dataframes:
                 # Concatenate all valid DataFrames
@@ -203,25 +203,25 @@ class DataProcessor:
                 if 'symbol' in aggregated_df.columns:
                     aggregated_df = aggregated_df.sort_values(['symbol', 'datetime'])
                 
-                logger.info(f"Aggregated {len(valid_dataframes)} DataFrames into {len(aggregated_df)} rows")
+                logger.info(f"Agregados {len(valid_dataframes)} DataFrames en {len(aggregated_df)} filas")
                 return aggregated_df
             else:
-                logger.warning("No valid DataFrames to aggregate")
+                logger.warning("No hay DataFrames válidos para agregar")
                 return pd.DataFrame()
                 
         except Exception as e:
-            logger.error(f"Error aggregating market data: {e}")
+            logger.error(f"Error al agregar datos de mercado: {e}")
             return pd.DataFrame()
     
     def calculate_derived_metrics(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculate derived metrics from market data.
+        Calcular métricas derivadas a partir de datos de mercado.
         
         Args:
-            df: Market data DataFrame
+            df: DataFrame con datos de mercado
             
         Returns:
-            pd.DataFrame: DataFrame with derived metrics
+            pd.DataFrame: DataFrame con métricas derivadas
         """
         try:
             if df.empty:
@@ -243,23 +243,23 @@ class DataProcessor:
                 result_df['volatility_range'] = result_df['high'] - result_df['low']
                 result_df['volatility_pct'] = (result_df['volatility_range'] / result_df['last']) * 100
             
-            logger.debug(f"Calculated derived metrics for {len(result_df)} rows")
+            logger.debug(f"Calculadas métricas derivadas para {len(result_df)} filas")
             return result_df
             
         except Exception as e:
-            logger.error(f"Error calculating derived metrics: {e}")
+            logger.error(f"Error al calcular métricas derivadas: {e}")
             return df
     
     def filter_by_criteria(self, df: pd.DataFrame, criteria: Dict[str, Any]) -> pd.DataFrame:
         """
-        Filter DataFrame based on specified criteria.
+        Filtrar un DataFrame según criterios especificados.
         
         Args:
-            df: DataFrame to filter
-            criteria: Dictionary of filter criteria
+            df: DataFrame a filtrar
+            criteria: Diccionario con criterios de filtrado
             
         Returns:
-            pd.DataFrame: Filtered DataFrame
+            pd.DataFrame: DataFrame filtrado
         """
         try:
             if df.empty:
@@ -270,7 +270,7 @@ class DataProcessor:
             # Apply filters based on criteria
             for column, condition in criteria.items():
                 if column not in filtered_df.columns:
-                    logger.warning(f"Column {column} not found for filtering")
+                    logger.warning(f"Columna {column} no encontrada para filtrar")
                     continue
                 
                 if isinstance(condition, dict):
@@ -286,21 +286,21 @@ class DataProcessor:
                     # Handle single value
                     filtered_df = filtered_df[filtered_df[column] == condition]
             
-            logger.debug(f"Filtered DataFrame from {len(df)} to {len(filtered_df)} rows")
+            logger.debug(f"Filtrado DataFrame de {len(df)} a {len(filtered_df)} filas")
             return filtered_df
             
         except Exception as e:
-            logger.error(f"Error filtering DataFrame: {e}")
+            logger.error(f"Error al filtrar DataFrame: {e}")
             return df
     
     def get_processing_stats(self) -> Dict[str, Any]:
-        """Get processing statistics."""
+        """Obtener estadísticas de procesamiento."""
         stats = self.processing_stats.copy()
         stats['last_update_time'] = self.last_update_time
         return stats
     
     def reset_stats(self):
-        """Reset processing statistics."""
+        """Reiniciar estadísticas de procesamiento."""
         self.processing_stats = {
             'updates_processed': 0,
             'errors': 0,
