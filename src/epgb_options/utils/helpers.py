@@ -1,7 +1,7 @@
 """
-General helper utilities for EPGB Options.
+Utilidades auxiliares generales para EPGB Options.
 
-This module provides general utility functions used across the application.
+Este módulo provee funciones de utilidad general usadas en toda la aplicación.
 """
 
 from datetime import date, datetime
@@ -49,7 +49,7 @@ def safe_float_conversion(value: Any, default: float = 0.0) -> float:
     try:
         return float(value)
     except (ValueError, TypeError):
-        logger.debug(f"Could not convert {value} to float, using default {default}")
+        logger.debug(f"No se pudo convertir {value} a float, usando valor por defecto {default}")
         return default
 
 
@@ -356,7 +356,7 @@ def batch_list(items: list, batch_size: int) -> list:
         list: List of batches (sublists)
     """
     if batch_size <= 0:
-        raise ValueError("Batch size must be positive")
+        raise ValueError("El tamaño del lote debe ser positivo")
     
     return [items[i:i + batch_size] for i in range(0, len(items), batch_size)]
 

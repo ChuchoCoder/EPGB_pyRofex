@@ -1,8 +1,8 @@
 """
-Main application entry point for EPGB Options.
+Punto de entrada principal de la aplicación EPGB Options.
 
-This module provides the main application logic and coordinates
-all the different components.
+Este módulo provee la lógica principal de la aplicación y coordina
+todos los diferentes componentes.
 """
 
 import time
@@ -21,10 +21,10 @@ logger = get_logger(__name__)
 
 
 class EPGBOptionsApp:
-    """Main EPGB Options application class."""
+    """Clase principal de la aplicación EPGB Options."""
     
     def __init__(self):
-        """Initialize the application."""
+        """Inicializar la aplicación."""
         self.api_client = None
         self.websocket_handler = None
         self.data_processor = None
@@ -43,114 +43,114 @@ class EPGBOptionsApp:
     
     def initialize(self) -> bool:
         """
-        Initialize all application components.
+        Inicializar todos los componentes de la aplicación.
         
         Returns:
-            bool: True if initialization successful, False otherwise
+            bool: True si la inicialización fue exitosa, False en caso contrario
         """
         try:
-            logger.info("Initializing EPGB Options application")
+            logger.info("Inicializando aplicación EPGB Options")
             
-            # Setup logging
+            # Configurar logging
             setup_logging()
             
-            # Validate configurations
+            # Validar configuraciones
             if not self._validate_configurations():
                 return False
             
-            # Initialize Excel components
+            # Inicializar componentes de Excel
             if not self._initialize_excel_components():
                 return False
             
-            # Load symbols from Excel
+            # Cargar símbolos desde Excel
             if not self._load_symbols():
                 return False
             
-            # Initialize market data components
+            # Inicializar componentes de datos de mercado
             if not self._initialize_market_data_components():
                 return False
             
-            logger.info("✅ Application initialization completed successfully")
+            logger.info("✅ Inicialización de la aplicación completada exitosamente")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to initialize application: {e}")
+            logger.error(f"Fallo al inicializar la aplicación: {e}")
             return False
     
     def _validate_configurations(self) -> bool:
-        """Validate all configuration files."""
-        logger.info("Validating configurations...")
+        """Validar todos los archivos de configuración."""
+        logger.info("Validando configuraciones...")
         
-        # Validate Excel configuration
+        # Validar configuración de Excel
         excel_errors = validate_excel_config()
         if excel_errors:
-            logger.error("Excel configuration errors:")
+            logger.error("Errores de configuración de Excel:")
             for error in excel_errors:
                 logger.error(f"  - {error}")
             return False
         
-        # Validate pyRofex configuration
+        # Validar configuración de pyRofex
         pyrofex_errors = validate_pyRofex_config()
         if pyrofex_errors:
-            logger.error("pyRofex configuration errors:")
+            logger.error("Errores de configuración de pyRofex:")
             for error in pyrofex_errors:
                 logger.error(f"  - {error}")
             
-            # Check for placeholder values specifically
+            # Verificar valores de placeholder específicamente
             if any("placeholder" in error.lower() for error in pyrofex_errors):
-                logger.error("🛑 STOPPING EXECUTION - Manual credential configuration required")
-                logger.error("Please configure your credentials in:")
-                logger.error("   - pyRofex_config.py (or)")
-                logger.error("   - Environment variables: PYROFEX_USER, PYROFEX_PASSWORD, PYROFEX_ACCOUNT")
+                logger.error("🛑 DETENIENDO EJECUCIÓN - Se requiere configuración manual de credenciales")
+                logger.error("Por favor configurá tus credenciales en:")
+                logger.error("   - pyRofex_config.py (o)")
+                logger.error("   - Variables de entorno: PYROFEX_USER, PYROFEX_PASSWORD, PYROFEX_ACCOUNT")
                 return False
         
-        logger.info("✅ Configuration validation passed")
+        logger.info("✅ Validación de configuración exitosa")
         return True
     
     def _initialize_excel_components(self) -> bool:
-        """Initialize Excel-related components."""
+        """Inicializar componentes relacionados a Excel."""
         try:
-            logger.info("Initializing Excel components...")
+            logger.info("Inicializando componentes de Excel...")
             
-            # Initialize workbook manager
+            # Inicializar el administrador de libro
             self.workbook_manager = WorkbookManager(EXCEL_FILE, EXCEL_PATH)
             if not self.workbook_manager.connect():
                 return False
             
-            # Get tickers sheet
+            # Obtener hoja de tickers
             tickers_sheet = self.workbook_manager.get_sheet(SHEET_TICKERS)
             if not tickers_sheet:
-                logger.error(f"Could not access {SHEET_TICKERS} sheet")
+                logger.error(f"No se pudo acceder a la hoja {SHEET_TICKERS}")
                 return False
             
-            # Initialize symbol loader
+            # Inicializar cargador de símbolos
             self.symbol_loader = SymbolLoader(tickers_sheet)
             
-            # Initialize sheet operations
+            # Inicializar operaciones de hojas
             self.sheet_operations = SheetOperations(self.workbook_manager.workbook)
             
-            logger.info("✅ Excel components initialized")
+            logger.info("✅ Componentes de Excel inicializados")
             return True
             
         except Exception as e:
-            logger.error(f"Error initializing Excel components: {e}")
+            logger.error(f"Error al inicializar componentes de Excel: {e}")
             return False
     
     def _load_symbols(self) -> bool:
-        """Load symbols from Excel sheets."""
+        """Cargar símbolos desde las hojas de Excel."""
         try:
-            logger.info("Loading symbols from Excel...")
+            logger.info("Cargando símbolos desde Excel...")
             
-            # Load all symbol types
+            # Cargar todos los tipos de símbolos
             all_symbols = self.symbol_loader.get_all_symbols()
             
-            # Store options separately
+            # Almacenar opciones por separado
             self.options_df = all_symbols.get('options', pd.DataFrame())
             
-            # Store cauciones separately (they only go to the right-side table)
+            # Almacenar cauciones por separado (sólo van a la tabla del lado derecho)
             self.cauciones_df = all_symbols.get('cauciones', pd.DataFrame())
             
-            # Combine other securities (exclude cauciones from main table)
+            # Combinar otros valores (excluir cauciones de la tabla principal)
             securities_to_combine = ['acciones', 'bonos', 'cedears', 'letras', 'ons', 'panel_general']
             securities_dfs = [all_symbols.get(key, pd.DataFrame()) for key in securities_to_combine]
             valid_securities = [df for df in securities_dfs if not df.empty]
@@ -160,240 +160,262 @@ class EPGBOptionsApp:
             else:
                 self.everything_df = pd.DataFrame()
             
-            # Log summary
+            # Registrar resumen
             symbol_counts = self.symbol_loader.get_symbol_count_by_type()
-            logger.info("Symbol loading summary:")
+            logger.info("Resumen de carga de símbolos:")
             for symbol_type, count in symbol_counts.items():
-                logger.info(f"  - {symbol_type}: {count} symbols")
+                logger.info(f"  - {symbol_type}: {count} símbolos")
             
             total_symbols = len(self.options_df) + len(self.everything_df)
-            logger.info(f"✅ Total symbols loaded: {total_symbols}")
+            logger.info(f"✅ Total de símbolos cargados: {total_symbols}")
             
             return total_symbols > 0
             
         except Exception as e:
-            logger.error(f"Error loading symbols: {e}")
+            logger.error(f"Error al cargar símbolos: {e}")
             return False
     
     def _initialize_market_data_components(self) -> bool:
-        """Initialize market data components."""
+        """Inicializar componentes de datos de mercado."""
         try:
-            logger.info("Initializing market data components...")
+            logger.info("Inicializando componentes de datos de mercado...")
             
-            # Initialize API client
+            # Inicializar cliente API
             self.api_client = pyRofexClient()
             if not self.api_client.initialize():
                 print("\n" + "="*70)
-                print("\033[91m🛑 INITIALIZATION FAILED - Application cannot continue\033[0m")
+                print("\033[91m🛑 FALLO DE INICIALIZACIÓN - La aplicación no puede continuar\033[0m")
                 print("="*70)
-                print("\033[91m⚠️  PyRofex API client failed to initialize\033[0m")
-                print("\n📋 What this means:")
-                print("   • The application cannot connect to the PyRofex market data API")
-                print("   • Most likely cause: Authentication failure (incorrect credentials)")
-                print("   • Check the error messages above for specific details")
-                print("\n🔧 Next steps:")
-                print("   1. Review the authentication error details above")
-                print("   2. Fix your credentials (see instructions above)")
-                print("   3. Re-run the application")
-                print("\n💡 Need help? Check the README.md file for setup instructions")
+                print("\033[91m⚠️  El cliente de la API PyRofex falló al inicializar\033[0m")
+                print("\n📋 Qué significa esto:")
+                print("   • La aplicación no puede conectarse a la API de datos de mercado de PyRofex")
+                print("   • Causa más probable: Fallo de autenticación (credenciales incorrectas)")
+                print("   • Revisá los mensajes de error de arriba para detalles específicos")
+                print("\n🔧 Próximos pasos:")
+                print("   1. Revisá los detalles del error de autenticación arriba")
+                print("   2. Corregí tus credenciales (mirá las instrucciones arriba)")
+                print("   3. Volvé a ejecutar la aplicación")
+                print("\n💡 ¿Necesitás ayuda? Consultá el archivo README.md para instrucciones de configuración")
                 print("="*70 + "\n")
                 
-                logger.error("🛑 Failed to initialize pyRofex API client - stopping application")
+                logger.error("🛑 Fallo al inicializar el cliente de la API de pyRofex - deteniendo aplicación")
                 return False
             
-            # Initialize WebSocket handler
-            self.websocket_handler = WebSocketHandler()
+            # CRITICAL: Pre-cargar instrumentos ANTES de inicializar WebSocketHandler
+            # Esto asegura que el caché de instrumentos esté poblado antes de cualquier
+            # procesamiento de mensajes de WebSocket
+            logger.info("Pre-cargando instrumentos disponibles desde pyRofex...")
+            available_instruments = self.api_client.fetch_available_instruments()
+            logger.info(f"✅ Pre-cargados {len(available_instruments)} instrumentos al caché")
+            
+            # Verificar que el caché está poblado correctamente
+            cache_stats = self.api_client.instrument_cache.get_cache_stats()
+            logger.info(f"📊 Caché de instrumentos: {cache_stats['total_instruments']} instrumentos, {cache_stats['total_options']} opciones")
+            
+            if cache_stats['total_options'] == 0:
+                logger.warning("⚠️  No se encontraron opciones en el caché de instrumentos")
+            
+            # Inicializar manejador de WebSocket con caché de instrumentos compartido (ya poblado)
+            self.websocket_handler = WebSocketHandler(instrument_cache=self.api_client.instrument_cache)
             self.websocket_handler.set_data_references(self.options_df, self.everything_df, self.cauciones_df)
             self.websocket_handler.set_update_callback(self._on_data_update)
             
-            # Initialize data processor
+            # Inicializar procesador de datos
             self.data_processor = DataProcessor()
             
-            # Set up WebSocket handlers
+            # Configurar manejadores de WebSocket
             self.api_client.set_market_data_handler(self.websocket_handler.market_data_handler)
             self.api_client.set_error_handler(self.websocket_handler.websocket_error_handler)
             self.api_client.set_exception_handler(self.websocket_handler.websocket_exception_handler)
             
-            logger.info("✅ Market data components initialized")
+            logger.info("✅ Componentes de datos de mercado inicializados")
             return True
             
         except Exception as e:
-            logger.error(f"Error initializing market data components: {e}")
+            logger.error(f"Error al inicializar componentes de datos de mercado: {e}")
             return False
     
     def _on_data_update(self, symbol: str, message: Dict[str, Any]):
         """
-        Callback for when market data is updated.
+        Callback para cuando los datos de mercado se actualizan.
         
         Args:
-            symbol: Updated symbol
-            message: Market data message
+            symbol: Símbolo actualizado
+            message: Mensaje de datos de mercado
         """
         self.last_update_time = datetime.now()
-        logger.debug(f"Data update callback for {symbol}")
+        logger.debug(f"Callback de actualización de datos para {symbol}")
         
-        # You could trigger Excel updates here or batch them
-        # For now, we'll just log the update
+        # Podrías disparar actualizaciones de Excel acá o agruparlas
+        # Por ahora, sólo registramos la actualización
     
     def start_market_data_subscription(self) -> bool:
-        """Start subscribing to market data."""
+        """Comenzar suscripción a datos de mercado."""
         try:
-            logger.info("Starting market data subscription...")
+            logger.info("Iniciando suscripción a datos de mercado...")
             
-            # Fetch available instruments first
-            logger.info("Fetching available instruments from pyRofex...")
-            available_instruments = self.api_client.fetch_available_instruments()
-            logger.info(f"Found {len(available_instruments)} available instruments")
+            # Los instrumentos ya fueron cargados durante la inicialización
+            # Solo necesitamos validar y suscribirnos
             
-            # Subscribe to options
+            # Suscribirse a opciones
             if not self.options_df.empty:
                 options_symbols = list(self.options_df.index)
                 success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(options_symbols)
                 
                 if invalid_symbols:
-                    logger.warning(f"Skipped {len(invalid_symbols)} invalid option symbols")
+                    logger.warning(f"Se omitieron {len(invalid_symbols)} símbolos de opciones inválidos")
                     
                 if not success or not valid_symbols:
-                    logger.error("Failed to subscribe to options data")
+                    logger.error("Fallo al suscribirse a datos de opciones")
                     return False
                     
-                logger.info(f"Subscribed to {len(valid_symbols)} options")
+                logger.info(f"Suscripto a {len(valid_symbols)} opciones")
             
-            # Subscribe to other securities  
+            # Suscribirse a otros valores  
             if not self.everything_df.empty:
                 securities_symbols = list(self.everything_df.index)
                 success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(securities_symbols)
                 
                 if invalid_symbols:
-                    logger.warning(f"Skipped {len(invalid_symbols)} invalid security symbols")
+                    logger.warning(f"Se omitieron {len(invalid_symbols)} símbolos de valores inválidos")
                     
                 if not success or not valid_symbols:
-                    logger.error("Failed to subscribe to securities data")
+                    logger.error("Fallo al suscribirse a datos de valores")
                     return False
                     
-                logger.info(f"Subscribed to {len(valid_symbols)} securities")
+                logger.info(f"Suscripto a {len(valid_symbols)} valores")
             
-            # Subscribe to cauciones (separate DataFrame, only updates right table)
+            # Suscribirse a cauciones (DataFrame separado, sólo actualiza tabla derecha)
             if not self.cauciones_df.empty:
                 cauciones_symbols = list(self.cauciones_df.index)
                 success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(cauciones_symbols)
                 
                 if invalid_symbols:
-                    logger.warning(f"Skipped {len(invalid_symbols)} invalid caucion symbols")
+                    logger.warning(f"Se omitieron {len(invalid_symbols)} símbolos de cauciones inválidos")
                     
                 if success and valid_symbols:
-                    logger.info(f"Subscribed to {len(valid_symbols)} cauciones")
+                    logger.info(f"Suscripto a {len(valid_symbols)} cauciones")
                 else:
-                    logger.warning("No valid cauciones to subscribe")
+                    logger.warning("No hay cauciones válidas para suscribirse")
             
-            log_connection_event("Market Data Subscription", "Started successfully")
+            log_connection_event("Suscripción a Datos de Mercado", "Iniciado exitosamente")
             return True
             
         except Exception as e:
-            logger.error(f"Error starting market data subscription: {e}")
+            logger.error(f"Error al iniciar suscripción a datos de mercado: {e}")
             return False
     
     def update_excel_with_current_data(self) -> bool:
-        """Update Excel with current market data."""
+        """Actualizar Excel con los datos de mercado actuales."""
         try:
-            logger.debug("Updating Excel with current data...")
+            logger.debug("Actualizando Excel con datos actuales...")
             
-            # Update HomeBroker sheet with securities data (excluding cauciones)
+            # Actualizar hoja HomeBroker con datos de valores (excluyendo cauciones)
             if not self.everything_df.empty:
                 success = self.sheet_operations.update_market_data_to_homebroker_sheet(
                     self.everything_df, SHEET_HOMEBROKER, self.cauciones_df
                 )
                 if not success:
-                    logger.warning("Failed to update HomeBroker sheet")
+                    logger.warning("Fallo al actualizar hoja HomeBroker")
             
-            # You could add options sheet updates here if needed
+            # Actualizar opciones en HomeBroker sheet
+            if not self.options_df.empty:
+                # Opciones usan bidsize/asksize sin underscore, necesitamos renombrar para compatibilidad con Excel
+                options_for_excel = self.options_df.copy()
+                options_for_excel = options_for_excel.rename(columns={'bidsize': 'bid_size', 'asksize': 'ask_size'})
+                
+                success = self.sheet_operations.update_market_data_to_homebroker_sheet(
+                    options_for_excel, SHEET_HOMEBROKER, cauciones_df=None
+                )
+                if not success:
+                    logger.warning("Fallo al actualizar opciones en HomeBroker")
             
-            logger.debug("Excel update completed")
+            logger.debug("Actualización de Excel completada")
             return True
             
         except Exception as e:
-            logger.error(f"Error updating Excel: {e}")
+            logger.error(f"Error al actualizar Excel: {e}")
             return False
     
     def run(self):
-        """Run the main application loop."""
+        """Ejecutar el bucle principal de la aplicación."""
         try:
-            logger.info("🚀 Starting EPGB Options Market Data application")
+            logger.info("🚀 Iniciando aplicación de Datos de Mercado EPGB Options")
             
             if not self.initialize():
                 print("\n" + "="*70)
-                print("\033[91m💥 APPLICATION STARTUP FAILED\033[0m")
+                print("\033[91m💥 FALLO DE INICIO DE APLICACIÓN\033[0m")
                 print("="*70)
-                print("\033[91m❌ The application could not initialize properly\033[0m")
-                print("\n📋 Common causes:")
-                print("   • Incorrect PyRofex credentials (most common)")
-                print("   • Excel file not found or cannot be opened")
-                print("   • Missing or invalid configuration files")
-                print("\n🔍 Check the error messages above to identify the specific problem")
-                print("\n🔧 Once you fix the issue, run the application again:")
+                print("\033[91m❌ La aplicación no pudo inicializarse correctamente\033[0m")
+                print("\n📋 Causas comunes:")
+                print("   • Credenciales de PyRofex incorrectas (más común)")
+                print("   • Archivo de Excel no encontrado o no se puede abrir")
+                print("   • Archivos de configuración faltantes o inválidos")
+                print("\n🔍 Revisá los mensajes de error de arriba para identificar el problema específico")
+                print("\n🔧 Una vez que corrijas el problema, ejecutá la aplicación de nuevo:")
                 print("   python -m epgb_options")
-                print("   # or")
+                print("   # o")
                 print("   epgb-options")
                 print("="*70 + "\n")
                 
-                logger.error("🛑 Initialization failed - stopping application")
+                logger.error("🛑 Fallo de inicialización - deteniendo aplicación")
                 return
             
             if not self.start_market_data_subscription():
-                logger.error("Market data subscription failed - stopping application")
+                logger.error("Fallo de suscripción a datos de mercado - deteniendo aplicación")
                 return
             
             self.is_running = True
-            logger.info("✅ Application running - market data streaming started")
+            logger.info("✅ Aplicación ejecutándose - streaming de datos de mercado iniciado")
             
-            # Wait for initial market data to populate (give WebSocket time to receive first batch)
-            logger.info("Waiting for initial market data to populate...")
+            # Esperar a que los datos de mercado iniciales se poblen (dar tiempo al WebSocket para recibir primer lote)
+            logger.info("Esperando que los datos de mercado iniciales se pueblen...")
             time.sleep(2)
-            logger.info("Starting Excel updates")
+            logger.info("Iniciando actualizaciones de Excel")
             
-            # Main application loop
+            # Bucle principal de la aplicación
             try:
                 while self.is_running:
-                    # Update Excel periodically
+                    # Actualizar Excel periódicamente
                     self.update_excel_with_current_data()
                     
-                    # Sleep for a short interval
+                    # Dormir por un intervalo corto
                     time.sleep(1)
                     
             except KeyboardInterrupt:
-                logger.info("Keyboard interrupt received - shutting down gracefully")
+                logger.info("Interrupción de teclado recibida - cerrando correctamente")
             
         except Exception as e:
-            logger.error(f"Error in main application loop: {e}")
+            logger.error(f"Error en bucle principal de la aplicación: {e}")
         finally:
             self.shutdown()
     
     def shutdown(self):
-        """Shutdown the application gracefully."""
+        """Cerrar la aplicación correctamente."""
         try:
-            logger.info("Shutting down application...")
+            logger.info("Cerrando aplicación...")
             
             self.is_running = False
             
-            # Close API client
+            # Cerrar cliente API
             if self.api_client:
                 self.api_client.close_connection()
             
-            # Disconnect from Excel
+            # Desconectar de Excel
             if self.workbook_manager:
                 self.workbook_manager.disconnect()
             
-            logger.info("✅ Application shutdown completed")
+            logger.info("✅ Cierre de aplicación completado")
             
         except Exception as e:
-            logger.error(f"Error during shutdown: {e}")
+            logger.error(f"Error durante el cierre: {e}")
     
     def get_status_report(self) -> Dict[str, Any]:
         """
-        Get application status report.
+        Obtener reporte de estado de la aplicación.
         
         Returns:
-            dict: Status information
+            dict: Información de estado
         """
         try:
             return {
@@ -406,12 +428,12 @@ class EPGBOptionsApp:
                 'excel_connected': self.workbook_manager.is_connected() if self.workbook_manager else False
             }
         except Exception as e:
-            logger.error(f"Error getting status report: {e}")
+            logger.error(f"Error al obtener reporte de estado: {e}")
             return {'error': str(e)}
 
 
 def main():
-    """Main entry point for the application."""
+    """Punto de entrada principal para la aplicación."""
     app = EPGBOptionsApp()
     app.run()
 

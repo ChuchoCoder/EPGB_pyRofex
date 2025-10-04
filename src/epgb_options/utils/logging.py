@@ -1,7 +1,7 @@
 """
-Logging utilities for EPGB Options.
+Utilidades de logging para EPGB Options.
 
-This module provides centralized logging configuration and utilities.
+Este módulo provee configuración centralizada de logging y utilidades.
 """
 
 import logging
@@ -12,32 +12,32 @@ from pathlib import Path
 
 def setup_logging(level=logging.INFO, log_file=None):
     """
-    Set up logging configuration.
+    Configurar logging.
     
     Args:
-        level: Logging level (default: INFO)
-        log_file: Optional log file path
+        level: Nivel de logging (por defecto: INFO)
+        log_file: Ruta opcional del archivo de log
     """
-    # Create formatter
+    # Crear formateador
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    # Configure root logger
+    # Configurar logger raíz
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
     
-    # Clear existing handlers
+    # Limpiar manejadores existentes
     root_logger.handlers.clear()
     
-    # Console handler
+    # Manejador de consola
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
     
-    # File handler (if specified)
+    # Manejador de archivo (si se especifica)
     if log_file:
-        # Create log directory if it doesn't exist
+        # Crear directorio de log si no existe
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
         
         file_handler = logging.FileHandler(log_file)
@@ -47,25 +47,25 @@ def setup_logging(level=logging.INFO, log_file=None):
 
 def get_logger(name):
     """
-    Get a logger with the specified name.
+    Obtener un logger con el nombre especificado.
     
     Args:
-        name: Logger name (typically __name__)
+        name: Nombre del logger (típicamente __name__)
         
     Returns:
-        logging.Logger: Configured logger
+        logging.Logger: Logger configurado
     """
     return logging.getLogger(name)
 
 
 def log_validation_message(category, message, success=None):
     """
-    Log a validation message with consistent formatting.
+    Registrar un mensaje de validación con formato consistente.
     
     Args:
-        category: Category of validation
-        message: Validation message
-        success: True if successful, False if failed, None for info
+        category: Categoría de validación
+        message: Mensaje de validación
+        success: True si fue exitoso, False si falló, None para info
     """
     logger = get_logger("validation")
     
@@ -79,11 +79,11 @@ def log_validation_message(category, message, success=None):
 
 def log_connection_event(event_type, details=""):
     """
-    Log connection-related events.
+    Registrar eventos relacionados a conexiones.
     
     Args:
-        event_type: Type of connection event
-        details: Additional details
+        event_type: Tipo de evento de conexión
+        details: Detalles adicionales
     """
     logger = get_logger("connection")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -96,16 +96,16 @@ def log_connection_event(event_type, details=""):
 
 def log_market_data_event(symbol, event_type, data=None):
     """
-    Log market data events.
+    Registrar eventos de datos de mercado.
     
     Args:
-        symbol: Financial instrument symbol
-        event_type: Type of market data event  
-        data: Optional market data
+        symbol: Símbolo de instrumento financiero
+        event_type: Tipo de evento de datos de mercado  
+        data: Datos de mercado opcionales
     """
     logger = get_logger("market_data")
     
     if data:
-        logger.debug(f"Event: {symbol} - {event_type}: {data}")
+        logger.debug(f"Evento: {symbol} - {event_type}: {data}")
     else:
-        logger.debug(f"Event: {symbol} - {event_type}")
+        logger.debug(f"Evento: {symbol} - {event_type}")

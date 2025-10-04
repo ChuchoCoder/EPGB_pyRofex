@@ -1,25 +1,27 @@
 """
-Data processor for EPGB Options.
+Procesador de datos para EPGB Options.
 
-This module handles data transformation, aggregation, and processing
-for market data received from pyRofex.
+Este módulo maneja la transformación, agregación y procesamiento de datos
+para datos de mercado recibidos desde pyRofex.
 """
 
-import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from ..utils.logging import get_logger
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+
 from ..utils.helpers import clean_dataframe_for_excel, get_excel_safe_value
+from ..utils.logging import get_logger
 from ..utils.validation import validate_pandas_dataframe
 
 logger = get_logger(__name__)
 
 
 class DataProcessor:
-    """Handles data processing and transformation for market data."""
+    """Maneja procesamiento y transformación de datos para datos de mercado."""
     
     def __init__(self):
-        """Initialize data processor."""
+        """Inicializar procesador de datos."""
         self.last_update_time = None
         self.processing_stats = {
             'updates_processed': 0,
@@ -29,16 +31,16 @@ class DataProcessor:
     
     def process_securities_data(self, quotes: Any) -> pd.DataFrame:
         """
-        Process securities data from pyRofex.
+        Procesar datos de valores desde pyRofex.
         
         Args:
-            quotes: Securities quotes data
+            quotes: Datos de cotizaciones de valores
             
         Returns:
-            pd.DataFrame: Processed securities data
+            pd.DataFrame: Datos de valores procesados
         """
         try:
-            logger.debug("Processing securities data")
+            logger.debug("Procesando datos de valores")
             
             # Handle both single message and multiple messages
             if isinstance(quotes, dict):

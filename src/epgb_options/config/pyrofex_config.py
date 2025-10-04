@@ -1,28 +1,28 @@
 """
-pyRofex API Configuration Module
+Módulo de Configuración de API de pyRofex
 
-This module contains all pyRofex API-related configuration values.
-Environment variables take precedence over these default values.
+Este módulo contiene todos los valores de configuración relacionados a la API de pyRofex.
+Las variables de entorno tienen prioridad sobre estos valores por defecto.
 
-⚠️  CRITICAL SECURITY WARNING ⚠️
+⚠️  ADVERTENCIA CRÍTICA DE SEGURIDAD ⚠️
 =====================================
-This file contains sensitive API credentials stored as PLAIN TEXT.
+Este archivo contiene credenciales sensibles de API almacenadas como TEXTO PLANO.
 
-REQUIRED SECURITY MEASURES:
-1. Set restrictive file permissions (owner read/write only):
+MEDIDAS DE SEGURIDAD REQUERIDAS:
+1. Configurá permisos restrictivos de archivo (sólo lectura/escritura del propietario):
    Windows: icacls pyRofex_config.py /grant:r %USERNAME%:F /inheritance:r
    
-2. Ensure this file is NOT committed to version control
-   (Check your .gitignore includes *.py config files if needed)
+2. Asegurate de que este archivo NO sea commiteado al control de versiones
+   (Verificá que tu .gitignore incluya archivos de config *.py si es necesario)
    
-3. For production deployments, use environment variables instead:
-   - Set PYROFEX_USER, PYROFEX_PASSWORD, PYROFEX_ACCOUNT in your environment
-   - This file will automatically use environment variables when available
+3. Para despliegues en producción, usá variables de entorno en su lugar:
+   - Configurá PYROFEX_USER, PYROFEX_PASSWORD, PYROFEX_ACCOUNT en tu entorno
+   - Este archivo usará automáticamente las variables de entorno cuando estén disponibles
    
-4. Regularly rotate credentials and monitor for unauthorized access
+4. Rotá las credenciales regularmente y monitoreá accesos no autorizados
 
-ALTERNATIVE: Use environment variables exclusively by setting all 
-PYROFEX_* values in your .env file and leaving defaults as placeholders.
+ALTERNATIVA: Usá variables de entorno exclusivamente configurando todos los 
+valores PYROFEX_* en tu archivo .env y dejando los valores por defecto como placeholders.
 =====================================
 """
 
@@ -34,12 +34,12 @@ from dotenv import load_dotenv
 # Load .env from project root
 load_dotenv()
 
-# pyRofex API Configuration - Environment variables override these defaults
+# Configuración de API de pyRofex - Las variables de entorno sobrescriben estos valores por defecto
 ENVIRONMENT = os.getenv('PYROFEX_ENVIRONMENT', 'LIVE')
 API_URL = os.getenv('PYROFEX_API_URL', 'https://api.cocos.xoms.com.ar/')
 WS_URL = os.getenv('PYROFEX_WS_URL', 'wss://api.cocos.xoms.com.ar/')
 
-# CREDENTIALS - Replace with actual values or use environment variables
+# CREDENCIALES - Reemplazá con valores reales o usá variables de entorno
 USER = os.getenv('PYROFEX_USER', 'REPLACE_WITH_YOUR_USERNAME')
 PASSWORD = os.getenv('PYROFEX_PASSWORD', 'REPLACE_WITH_YOUR_PASSWORD')
 ACCOUNT = os.getenv('PYROFEX_ACCOUNT', 'REPLACE_WITH_YOUR_ACCOUNT')
@@ -47,54 +47,54 @@ ACCOUNT = os.getenv('PYROFEX_ACCOUNT', 'REPLACE_WITH_YOUR_ACCOUNT')
 
 def validate_pyRofex_config():
     """
-    Validate pyRofex configuration values.
-    Returns list of errors, empty list if all valid.
+    Validar valores de configuración de pyRofex.
+    Devuelve lista de errores, lista vacía si todos son válidos.
     """
     errors = []
     
-    # Check URLs have proper protocol
+    # Verificar que las URLs tengan el protocolo adecuado
     if not API_URL.startswith(('http://', 'https://')):
-        errors.append(f"Invalid API_URL protocol: {API_URL}. Expected http:// or https://")
+        errors.append(f"Protocolo de API_URL inválido: {API_URL}. Se esperaba http:// o https://")
     
     if not WS_URL.startswith(('ws://', 'wss://')):
-        errors.append(f"Invalid WS_URL protocol: {WS_URL}. Expected ws:// or wss://")
+        errors.append(f"Protocolo de WS_URL inválido: {WS_URL}. Se esperaba ws:// o wss://")
     
-    # Check credentials are not placeholders
+    # Verificar que las credenciales no sean placeholders
     placeholder_values = ['REPLACE_WITH_YOUR_USERNAME', 'REPLACE_WITH_YOUR_PASSWORD', 'REPLACE_WITH_YOUR_ACCOUNT']
     
     if USER in placeholder_values:
-        errors.append("USER still contains placeholder value. Replace with actual username or set PYROFEX_USER environment variable")
+        errors.append("USER todavía contiene valor placeholder. Reemplazá con el nombre de usuario real o configurá la variable de entorno PYROFEX_USER")
     
     if PASSWORD in placeholder_values:
-        errors.append("PASSWORD still contains placeholder value. Replace with actual password or set PYROFEX_PASSWORD environment variable")
+        errors.append("PASSWORD todavía contiene valor placeholder. Reemplazá con la contraseña real o configurá la variable de entorno PYROFEX_PASSWORD")
         
     if ACCOUNT in placeholder_values:
-        errors.append("ACCOUNT still contains placeholder value. Replace with actual account or set PYROFEX_ACCOUNT environment variable")
+        errors.append("ACCOUNT todavía contiene valor placeholder. Reemplazá con la cuenta real o configurá la variable de entorno PYROFEX_ACCOUNT")
     
-    # Check credentials are not empty
+    # Verificar que las credenciales no estén vacías
     if not USER.strip():
-        errors.append("USER cannot be empty")
+        errors.append("USER no puede estar vacío")
         
     if not PASSWORD.strip():
-        errors.append("PASSWORD cannot be empty")
+        errors.append("PASSWORD no puede estar vacío")
         
     if not ACCOUNT.strip():
-        errors.append("ACCOUNT cannot be empty")
+        errors.append("ACCOUNT no puede estar vacío")
     
-    # Check environment is valid
+    # Verificar que el entorno sea válido
     valid_environments = ['LIVE', 'REMARKET', 'DEMO']
     if ENVIRONMENT not in valid_environments:
-        errors.append(f"Invalid ENVIRONMENT: {ENVIRONMENT}. Expected one of: {', '.join(valid_environments)}")
+        errors.append(f"ENVIRONMENT inválido: {ENVIRONMENT}. Se esperaba uno de: {', '.join(valid_environments)}")
     
     return errors
 
 
 if __name__ == "__main__":
-    # Test configuration when run directly
+    # Probar configuración cuando se ejecuta directamente
     errors = validate_pyRofex_config()
     if errors:
-        print("❌ pyRofex configuration errors:")
+        print("❌ Errores de configuración de pyRofex:")
         for error in errors:
             print(f"  - {error}")
     else:
-        print("✅ pyRofex configuration is valid")
+        print("✅ La configuración de pyRofex es válida")

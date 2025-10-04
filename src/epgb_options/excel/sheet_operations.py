@@ -1,8 +1,8 @@
 """
-Excel sheet operations for EPGB Options.
+Operaciones de hojas de Excel para EPGB Options.
 
-This module handles reading from and writing to Excel sheets,
-including data updates and formatting.
+Este módulo maneja lectura y escritura en hojas de Excel,
+incluyendo actualizaciones de datos y formato.
 """
 
 from typing import Any, Dict, List, Optional, Union
@@ -20,14 +20,14 @@ logger = get_logger(__name__)
 
 
 class SheetOperations:
-    """Handles Excel sheet operations for reading and writing data."""
+    """Maneja operaciones de hojas de Excel para lectura y escritura de datos."""
     
     def __init__(self, workbook: xw.Book):
         """
-        Initialize sheet operations.
+        Inicializar operaciones de hojas.
         
         Args:
-            workbook: xlwings Workbook object
+            workbook: Objeto Workbook de xlwings
         """
         self.workbook = workbook
         self.update_stats = {
@@ -178,13 +178,14 @@ class SheetOperations:
                         self._symbol_row_cache[full_symbol] = idx + 2
                 
                 logger.info(f"Built symbol row cache with {len(self._symbol_row_cache)} symbols from Excel")
-                
-                # Auto-populate missing symbols
-                missing_symbols = [sym for sym in df.index if sym not in self._symbol_row_cache]
-                if missing_symbols:
-                    logger.info(f"Auto-populating {len(missing_symbols)} new symbols to HomeBroker sheet...")
-                    self._add_symbols_to_sheet(homebroker_sheet, missing_symbols)
-                    logger.info(f"✅ Added {len(missing_symbols)} new symbols to Excel")
+            
+            # Always check for missing symbols (not just on first call)
+            # This ensures options (or any new symbols) added later are also populated
+            missing_symbols = [sym for sym in df.index if sym not in self._symbol_row_cache]
+            if missing_symbols:
+                logger.info(f"Auto-populating {len(missing_symbols)} new symbols to HomeBroker sheet...")
+                self._add_symbols_to_sheet(homebroker_sheet, missing_symbols)
+                logger.info(f"✅ Added {len(missing_symbols)} new symbols to Excel")
             
             # BULK UPDATE: Build 2D array for all data at once
             # Columns: B=bid_size, C=bid, D=ask, E=ask_size, F=last, G=change, H=open, I=high, J=low, K=previous_close, L=turnover, M=volume, N=operations, O=datetime

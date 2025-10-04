@@ -1,8 +1,20 @@
 """
-Symbol loader for EPGB Options.
+Cargador de símbolos para EPGB Options.
 
-This module loads financial instrument symbols from Excel sheets
-and transforms them for pyRofex compatibility.
+Este módulo carga símbolos             # Procesar datos de opciones
+            if isinstance(options_data, list):
+                # Filtrar valores None y strings vacíos
+                valid_options = [opt for opt in options_data if opt and str(opt).strip()]
+            else:
+                # Valor único
+                valid_options = [options_data] if options_data and str(options_data).strip() else []
+            
+            if not valid_options:
+                logger.warning("No se encontraron opciones válidas en Excel")
+                return pd.DataFrame()
+            
+            # Transformar símbolos para compatibilidad con pyRofexos financieros desde hojas de Excel
+y los transforma para compatibilidad con pyRofex.
 """
 
 from typing import Any, Dict, List, Optional
@@ -18,21 +30,21 @@ logger = get_logger(__name__)
 
 
 class SymbolLoader:
-    """Loads financial instrument symbols from Excel sheets."""
+    """Carga símbolos de instrumentos financieros desde hojas de Excel."""
     
-    # Column mappings for different instrument types
+    # Mapeos de columnas para diferentes tipos de instrumentos
     COLUMN_MAPPINGS = {
-        'options': 'A2:A500',      # Options: Column A
-        'acciones': 'C2:C500',     # Stocks: Column C  
-        'bonos': 'E2:E500',        # Bonds: Column E
-        'cedears': 'G2:G500',      # CEDEARs: Column G
-        'letras': 'I2:I500',       # Letters: Column I
-        'ons': 'K2:K500',          # ONs: Column K
-        'panel_general': 'M2:M500' # Panel General: Column M
+        'options': 'A2:A500',      # Opciones: Columna A
+        'acciones': 'C2:C500',     # Acciones: Columna C  
+        'bonos': 'E2:E500',        # Bonos: Columna E
+        'cedears': 'G2:G500',      # CEDEARs: Columna G
+        'letras': 'I2:I500',       # Letras: Columna I
+        'ons': 'K2:K500',          # ONs: Columna K
+        'panel_general': 'M2:M500' # Panel General: Columna M
     }
     
-    # Predefined cauciones (repos) list - only valid symbols from pyRofex API
-    # Note: 1D, 2D, 7D, 8D, 9D are not available in the API
+    # Lista de cauciones (repos) predefinidas - sólo símbolos válidos desde la API de pyRofex
+    # Nota: 1D, 2D, 7D, 8D, 9D no están disponibles en la API
     CAUCIONES = [
         "MERV - XMEV - PESOS - 3D",
         "MERV - XMEV - PESOS - 4D",
@@ -47,33 +59,33 @@ class SymbolLoader:
     
     def __init__(self, tickers_sheet: xw.Sheet):
         """
-        Initialize symbol loader.
+        Inicializar cargador de símbolos.
         
         Args:
-            tickers_sheet: xlwings Sheet object for the Tickers sheet
+            tickers_sheet: Objeto Sheet de xlwings para la hoja Tickers
         """
         self.tickers_sheet = tickers_sheet
         self.loaded_symbols = {}
     
     def get_options_list(self) -> pd.DataFrame:
         """
-        Load options symbols from Excel.
+        Cargar símbolos de opciones desde Excel.
         
         Returns:
-            pd.DataFrame: DataFrame with options data
+            pd.DataFrame: DataFrame con datos de opciones
         """
         try:
-            logger.debug("Loading options symbols from Excel")
+            logger.debug("Cargando símbolos de opciones desde Excel")
             
             # Get data from Excel range
             rng = self.tickers_sheet.range(self.COLUMN_MAPPINGS['options']).expand()
             options_data = rng.value
             
             if not validate_excel_range_data(options_data):
-                logger.warning("Invalid options data from Excel")
+                logger.warning("Datos de opciones inválidos desde Excel")
                 return pd.DataFrame()
             
-            # Process options data
+            # Procesar datos de opciones
             if isinstance(options_data, list):
                 # Filter out None values and empty strings
                 valid_options = [opt for opt in options_data if opt and str(opt).strip()]
@@ -85,10 +97,10 @@ class SymbolLoader:
                 logger.warning("No valid options found in Excel")
                 return pd.DataFrame()
             
-            # Transform symbols for pyRofex compatibility
+            # Transformar símbolos para compatibilidad con pyRofex
             transformed_options = [transform_symbol_for_pyrofex(opt) for opt in valid_options]
             
-            # Create DataFrame with necessary columns for options
+            # Crear DataFrame con columnas necesarias para opciones
             options_df = pd.DataFrame({
                 'symbol': transformed_options,
                 'bid': 0.0,
@@ -104,80 +116,80 @@ class SymbolLoader:
             options_df.set_index('symbol', inplace=True)
             
             self.loaded_symbols['options'] = options_df
-            logger.info(f"Loaded {len(options_df)} options symbols")
+            logger.info(f"Cargados {len(options_df)} símbolos de opciones")
             
             return options_df
             
         except Exception as e:
-            logger.error(f"Error loading options list: {e}")
+            logger.error(f"Error al cargar lista de opciones: {e}")
             return pd.DataFrame()
     
     def get_acciones_list(self) -> pd.DataFrame:
         """
-        Load stock symbols from Excel.
+        Cargar símbolos de acciones desde Excel.
         
         Returns:
-            pd.DataFrame: DataFrame with stocks data
+            pd.DataFrame: DataFrame con datos de acciones
         """
-        return self._load_securities_list('acciones', 'stocks')
+        return self._load_securities_list('acciones', 'acciones')
     
     def get_bonos_list(self) -> pd.DataFrame:
         """
-        Load bond symbols from Excel.
+        Cargar símbolos de bonos desde Excel.
         
         Returns:
-            pd.DataFrame: DataFrame with bonds data
+            pd.DataFrame: DataFrame con datos de bonos
         """
-        return self._load_securities_list('bonos', 'bonds')
+        return self._load_securities_list('bonos', 'bonos')
     
     def get_cedears_list(self) -> pd.DataFrame:
         """
-        Load CEDEAR symbols from Excel.
+        Cargar símbolos de CEDEARs desde Excel.
         
         Returns:
-            pd.DataFrame: DataFrame with CEDEARs data
+            pd.DataFrame: DataFrame con datos de CEDEARs
         """
         return self._load_securities_list('cedears', 'CEDEARs')
     
     def get_letras_list(self) -> pd.DataFrame:
         """
-        Load letters symbols from Excel.
+        Cargar símbolos de letras desde Excel.
         
         Returns:
-            pd.DataFrame: DataFrame with letters data
+            pd.DataFrame: DataFrame con datos de letras
         """
-        return self._load_securities_list('letras', 'letters')
+        return self._load_securities_list('letras', 'letras')
     
     def get_ons_list(self) -> pd.DataFrame:
         """
-        Load ONs symbols from Excel.
+        Cargar símbolos de ONs desde Excel.
         
         Returns:
-            pd.DataFrame: DataFrame with ONs data
+            pd.DataFrame: DataFrame con datos de ONs
         """
         return self._load_securities_list('ons', 'ONs')
     
     def get_panel_general_list(self) -> pd.DataFrame:
         """
-        Load Panel General symbols from Excel.
+        Cargar símbolos de Panel General desde Excel.
         
         Returns:
-            pd.DataFrame: DataFrame with Panel General data
+            pd.DataFrame: DataFrame con datos de Panel General
         """
         return self._load_securities_list('panel_general', 'Panel General')
     
     def get_cauciones_list(self) -> pd.DataFrame:
         """
-        Get predefined cauciones (repos) list.
+        Obtener lista predefinida de cauciones (repos).
         
         Returns:
-            pd.DataFrame: DataFrame with cauciones data
+            pd.DataFrame: DataFrame con datos de cauciones
         """
         try:
-            logger.debug("Creating cauciones list")
+            logger.debug("Creando lista de cauciones")
             
-            # Create DataFrame with predefined cauciones
-            # Match the columns expected by Excel layout (B-O columns)
+            # Crear DataFrame con cauciones predefinidas
+            # Coincidir con las columnas esperadas por el layout de Excel (columnas B-O)
             cauciones_df = pd.DataFrame({
                 'symbol': self.CAUCIONES,
                 'bid_size': 0,
@@ -199,57 +211,57 @@ class SymbolLoader:
             cauciones_df.set_index('symbol', inplace=True)
             
             self.loaded_symbols['cauciones'] = cauciones_df
-            logger.info(f"Created {len(cauciones_df)} cauciones symbols")
+            logger.info(f"Creados {len(cauciones_df)} símbolos de cauciones")
             
             return cauciones_df
             
         except Exception as e:
-            logger.error(f"Error creating cauciones list: {e}")
+            logger.error(f"Error al crear lista de cauciones: {e}")
             return pd.DataFrame()
     
     def _load_securities_list(self, instrument_type: str, display_name: str) -> pd.DataFrame:
         """
-        Generic method to load securities from Excel.
+        Método genérico para cargar títulos desde Excel.
         
         Args:
-            instrument_type: Key for column mapping
-            display_name: Human-readable name for logging
+            instrument_type: Clave para mapeo de columna
+            display_name: Nombre legible para logging
             
         Returns:
-            pd.DataFrame: DataFrame with securities data
+            pd.DataFrame: DataFrame con datos de títulos
         """
         try:
-            logger.debug(f"Loading {display_name} symbols from Excel")
+            logger.debug(f"Cargando símbolos de {display_name} desde Excel")
             
             if instrument_type not in self.COLUMN_MAPPINGS:
-                logger.error(f"Unknown instrument type: {instrument_type}")
+                logger.error(f"Tipo de instrumento desconocido: {instrument_type}")
                 return pd.DataFrame()
             
-            # Get data from Excel range
+            # Obtener datos desde rango de Excel
             rng = self.tickers_sheet.range(self.COLUMN_MAPPINGS[instrument_type]).expand()
             securities_data = rng.value
             
             if not validate_excel_range_data(securities_data):
-                logger.warning(f"Invalid {display_name} data from Excel")
+                logger.warning(f"Datos de {display_name} inválidos desde Excel")
                 return pd.DataFrame()
             
-            # Process securities data
+            # Procesar datos de títulos
             if isinstance(securities_data, list):
-                # Filter out None values and empty strings
+                # Filtrar valores None y strings vacíos
                 valid_securities = [sec for sec in securities_data if sec and str(sec).strip()]
             else:
-                # Single value
+                # Valor único
                 valid_securities = [securities_data] if securities_data and str(securities_data).strip() else []
             
             if not valid_securities:
-                logger.warning(f"No valid {display_name} found in Excel")
+                logger.warning(f"No se encontraron {display_name} válidos en Excel")
                 return pd.DataFrame()
             
-            # Transform symbols for pyRofex compatibility
+            # Transformar símbolos para compatibilidad con pyRofex
             transformed_securities = [transform_symbol_for_pyrofex(sec) for sec in valid_securities]
             
-            # Create DataFrame with necessary columns for securities
-            # Match the columns expected by Excel layout (B-O columns)
+            # Crear DataFrame con columnas necesarias para títulos
+            # Coincidir con las columnas esperadas por el layout de Excel (columnas B-O)
             securities_df = pd.DataFrame({
                 'symbol': transformed_securities,
                 'bid_size': 0,
@@ -271,23 +283,23 @@ class SymbolLoader:
             securities_df.set_index('symbol', inplace=True)
             
             self.loaded_symbols[instrument_type] = securities_df
-            logger.info(f"Loaded {len(securities_df)} {display_name} symbols")
+            logger.info(f"Cargados {len(securities_df)} símbolos de {display_name}")
             
             return securities_df
             
         except Exception as e:
-            logger.error(f"Error loading {display_name} list: {e}")
+            logger.error(f"Error al cargar lista de {display_name}: {e}")
             return pd.DataFrame()
     
     def get_all_symbols(self) -> Dict[str, pd.DataFrame]:
         """
-        Load all symbol types from Excel.
+        Cargar todos los tipos de símbolos desde Excel.
         
         Returns:
-            dict: Dictionary of DataFrames for each instrument type
+            dict: Diccionario de DataFrames para cada tipo de instrumento
         """
         try:
-            logger.info("Loading all symbols from Excel")
+            logger.info("Cargando todos los símbolos desde Excel")
             
             all_symbols = {
                 'options': self.get_options_list(),
@@ -300,22 +312,22 @@ class SymbolLoader:
                 'cauciones': self.get_cauciones_list()
             }
             
-            # Log summary
+            # Resumen de log
             total_symbols = sum(len(df) for df in all_symbols.values())
-            logger.info(f"Loaded total of {total_symbols} symbols across all instrument types")
+            logger.info(f"Cargado un total de {total_symbols} símbolos en todos los tipos de instrumentos")
             
             return all_symbols
             
         except Exception as e:
-            logger.error(f"Error loading all symbols: {e}")
+            logger.error(f"Error al cargar todos los símbolos: {e}")
             return {}
     
     def get_combined_securities(self) -> pd.DataFrame:
         """
-        Get combined DataFrame of all securities (excluding options).
+        Obtener DataFrame combinado de todos los títulos (excluyendo opciones).
         
         Returns:
-            pd.DataFrame: Combined securities DataFrame
+            pd.DataFrame: DataFrame de títulos combinados
         """
         try:
             securities_dfs = [
@@ -328,27 +340,27 @@ class SymbolLoader:
                 self.get_cauciones_list()
             ]
             
-            # Filter out empty DataFrames
+            # Filtrar DataFrames vacíos
             valid_dfs = [df for df in securities_dfs if not df.empty]
             
             if valid_dfs:
                 combined_df = pd.concat(valid_dfs, ignore_index=False)
-                logger.info(f"Combined {len(combined_df)} securities symbols")
+                logger.info(f"Combinados {len(combined_df)} símbolos de títulos")
                 return combined_df
             else:
-                logger.warning("No valid securities data to combine")
+                logger.warning("No hay datos de títulos válidos para combinar")
                 return pd.DataFrame()
                 
         except Exception as e:
-            logger.error(f"Error combining securities: {e}")
+            logger.error(f"Error al combinar títulos: {e}")
             return pd.DataFrame()
     
     def get_symbol_count_by_type(self) -> Dict[str, int]:
         """
-        Get count of symbols by instrument type.
+        Obtener conteo de símbolos por tipo de instrumento.
         
         Returns:
-            dict: Symbol counts by type
+            dict: Conteos de símbolos por tipo
         """
         counts = {}
         for instrument_type, df in self.loaded_symbols.items():

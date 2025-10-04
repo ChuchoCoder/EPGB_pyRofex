@@ -1,7 +1,7 @@
 """
-pyRofex API Client
+Cliente API de pyRofex
 
-This module handles the pyRofex API connection and configuration.
+Este módulo maneja la conexión y configuración de la API de pyRofex.
 """
 
 from typing import List, Set, Tuple
@@ -17,102 +17,102 @@ logger = get_logger(__name__)
 
 
 class pyRofexClient:
-    """pyRofex API client wrapper."""
+    """Wrapper del cliente API de pyRofex."""
     
     def __init__(self):
-        """Initialize the pyRofex client."""
+        """Inicializar el cliente de pyRofex."""
         self.is_initialized = False
         self.is_authenticated = False
         self.instrument_cache = InstrumentCache(ttl_minutes=30)
         self._valid_instruments: Set[str] = set()
         
     def initialize(self):
-        """Initialize the pyRofex connection."""
+        """Inicializar la conexión de pyRofex."""
         try:
-            # Set environment parameters
+            # Configurar parámetros de entorno
             pyRofex._set_environment_parameter('url', API_URL, getattr(pyRofex.Environment, ENVIRONMENT))
             pyRofex._set_environment_parameter('ws', WS_URL, getattr(pyRofex.Environment, ENVIRONMENT))
             
-            # Initialize
+            # Inicializar
             pyRofex.initialize(environment=getattr(pyRofex.Environment, ENVIRONMENT),
                              user=USER, 
                              password=PASSWORD,
                              account=ACCOUNT)
             
             self.is_initialized = True
-            logger.info(f"pyRofex initialized with environment: {ENVIRONMENT}")
+            logger.info(f"pyRofex inicializado con entorno: {ENVIRONMENT}")
             return True
             
         except Exception as e:
             error_msg = str(e)
             
-            # Check if it's an authentication error
+            # Verificar si es un error de autenticación
             if "Authentication fails" in error_msg or "Incorrect User or Password" in error_msg:
                 print("\n" + "="*70)
-                print("\033[91m❌ AUTHENTICATION FAILED\033[0m")
+                print("\033[91m❌ FALLO DE AUTENTICACIÓN\033[0m")
                 print("="*70)
-                print("\033[91m🔐 PyRofex rejected your credentials\033[0m")
-                print(f"\nError details: {error_msg}")
-                print("\n📋 What happened:")
-                print("   • PyRofex API rejected the username/password combination")
-                print("   • Your account credentials are incorrect or expired")
-                print("\n🔧 How to fix:")
-                print("   1. Verify your credentials at: https://www.cocos.xoms.com.ar/")
-                print("   2. Update your credentials in ONE of these locations:")
-                print("      → .env file (recommended):")
-                print("         PYROFEX_USER=your_username")
-                print("         PYROFEX_PASSWORD=your_password")
-                print("         PYROFEX_ACCOUNT=your_account")
-                print("      → OR in src/epgb_options/config/pyrofex_config.py")
-                print("\n⚠️  Security tip: Never commit credentials to git!")
+                print("\033[91m🔐 PyRofex rechazó tus credenciales\033[0m")
+                print(f"\nDetalles del error: {error_msg}")
+                print("\n📋 Qué pasó:")
+                print("   • La API de PyRofex rechazó la combinación de usuario/contraseña")
+                print("   • Las credenciales de tu cuenta son incorrectas o están vencidas")
+                print("\n🔧 Cómo arreglarlo:")
+                print("   1. Verificá tus credenciales en: https://www.cocos.xoms.com.ar/")
+                print("   2. Actualizá tus credenciales en UNO de estos lugares:")
+                print("      → Archivo .env (recomendado):")
+                print("         PYROFEX_USER=tu_usuario")
+                print("         PYROFEX_PASSWORD=tu_contraseña")
+                print("         PYROFEX_ACCOUNT=tu_cuenta")
+                print("      → O en src/epgb_options/config/pyrofex_config.py")
+                print("\n⚠️  Consejo de seguridad: ¡Nunca subas credenciales a git!")
                 print("="*70 + "\n")
                 
-                logger.error(f"🔐 Authentication failed: {error_msg}")
+                logger.error(f"🔐 Fallo de autenticación: {error_msg}")
             else:
-                logger.error(f"Failed to initialize pyRofex: {e}")
+                logger.error(f"Fallo al inicializar pyRofex: {e}")
             
             return False
     
     def fetch_available_instruments(self, force_refresh: bool = False) -> Set[str]:
         """
-        Fetch available instruments from pyRofex API.
-        Uses cache if available and not expired.
+        Obtener instrumentos disponibles desde la API de pyRofex.
+        Usa caché si está disponible y no expiró.
         
         Args:
-            force_refresh: Force refresh from API even if cache is valid
+            force_refresh: Forzar actualización desde API incluso si el caché es válido
             
         Returns:
-            Set of valid instrument symbols
+            Set de símbolos de instrumentos válidos
         """
         try:
-            # Try cache first unless force refresh
+            # Intentar primero con caché a menos que se fuerce actualización
             if not force_refresh:
                 cached_symbols = self.instrument_cache.get_instrument_symbols()
                 if cached_symbols:
                     self._valid_instruments = cached_symbols
-                    logger.info(f"Loaded {len(cached_symbols)} instruments from cache")
+                    logger.info(f"Cargados {len(cached_symbols)} instrumentos desde caché")
                     return cached_symbols
             
-            # Fetch from API
-            logger.info("Fetching available instruments from pyRofex API...")
-            instrumentsResponse = pyRofex.get_all_instruments()
+            # Obtener desde API
+            logger.info("Obteniendo instrumentos disponibles desde la API de pyRofex...")
+            instrumentsResponse = pyRofex.get_detailed_instruments()
             
             if not instrumentsResponse:
-                logger.warning("No instruments returned from API")
+                logger.warning("No se devolvieron instrumentos desde la API")
                 return set()
             
             instruments = instrumentsResponse['instruments']
             
             if not instruments:
-                logger.warning("No instruments found in API response")
+                logger.warning("No se encontraron instrumentos en la respuesta de la API")
                 return set()
 
-            # Log response structure for debugging
-            logger.debug(f"API returned {len(instruments)} instruments, type: {type(instruments)}")
+            # Registrar estructura de respuesta para depuración
+            logger.debug(f"La API devolvió {len(instruments)} instrumentos, tipo: {type(instruments)}")
             if instruments and len(instruments) > 0:
-                logger.debug(f"First instrument type: {type(instruments[0])}, sample: {instruments[0] if isinstance(instruments[0], str) else str(instruments[0])[:100]}")
+                logger.debug(f"Tipo del primer instrumento: {type(instruments[0])}, muestra: {instruments[0] if isinstance(instruments[0], str) else str(instruments[0])[:100]}")
             
-            # Save to cache
+            # Guardar en caché
             self.instrument_cache.save_instruments(
                 instruments,
                 metadata={
@@ -121,51 +121,51 @@ class pyRofexClient:
                 }
             )
             
-            # Extract symbols - handle both dict and string formats
+            # Extraer símbolos - manejar tanto formatos dict como string
             symbols = set()
             for instrument in instruments:
                 if isinstance(instrument, str):
-                    # Already a symbol string
+                    # Ya es un string de símbolo
                     symbols.add(instrument)
                 elif isinstance(instrument, dict):
-                    # Extract symbol from dict
+                    # Extraer símbolo del dict
                     symbol = instrument.get('symbol') or instrument.get('instrumentId', {}).get('symbol')
                     if symbol:
                         symbols.add(symbol)
                 else:
-                    logger.warning(f"Unexpected instrument type: {type(instrument)}")
+                    logger.warning(f"Tipo de instrumento inesperado: {type(instrument)}")
             
             self._valid_instruments = symbols
-            logger.info(f"Fetched {len(symbols)} instruments from API")
+            logger.info(f"Obtenidos {len(symbols)} instrumentos desde la API")
             return symbols
             
         except Exception as e:
-            logger.error(f"Error fetching instruments: {e}")
-            # Return cached symbols as fallback
+            logger.error(f"Error al obtener instrumentos: {e}")
+            # Devolver símbolos en caché como fallback
             cached_symbols = self.instrument_cache.get_instrument_symbols()
             if cached_symbols:
-                logger.warning(f"Using cached instruments as fallback ({len(cached_symbols)} symbols)")
+                logger.warning(f"Usando instrumentos en caché como fallback ({len(cached_symbols)} símbolos)")
                 self._valid_instruments = cached_symbols
                 return cached_symbols
             return set()
     
     def validate_symbols(self, symbols: List[str]) -> Tuple[List[str], List[str]]:
         """
-        Validate symbols against available instruments.
+        Validar símbolos contra instrumentos disponibles.
         
         Args:
-            symbols: List of symbols to validate
+            symbols: Lista de símbolos a validar
             
         Returns:
-            Tuple of (valid_symbols, invalid_symbols)
+            Tupla de (símbolos_válidos, símbolos_inválidos)
         """
         if not self._valid_instruments:
-            logger.warning("No instruments loaded, fetching now...")
+            logger.warning("No hay instrumentos cargados, obteniendo ahora...")
             self.fetch_available_instruments()
         
         if not self._valid_instruments:
-            logger.error("Cannot validate symbols - no instruments available")
-            return symbols, []  # Allow all symbols if we can't validate
+            logger.error("No se pueden validar símbolos - no hay instrumentos disponibles")
+            return symbols, []  # Permitir todos los símbolos si no podemos validar
         
         valid = []
         invalid = []
@@ -177,27 +177,27 @@ class pyRofexClient:
                 invalid.append(symbol)
         
         if invalid:
-            logger.warning(f"Found {len(invalid)} invalid symbols: {invalid[:5]}{'...' if len(invalid) > 5 else ''}")
+            logger.warning(f"Se encontraron {len(invalid)} símbolos inválidos: {invalid[:5]}{'...' if len(invalid) > 5 else ''}")
         
-        logger.info(f"Symbol validation: {len(valid)} valid, {len(invalid)} invalid out of {len(symbols)} total")
+        logger.info(f"Validación de símbolos: {len(valid)} válidos, {len(invalid)} inválidos de {len(symbols)} totales")
         return valid, invalid
     
     def get_market_data(self, symbols, entries=None):
-        """Get market data for symbols."""
+        """Obtener datos de mercado para símbolos."""
         if not self.is_initialized:
-            raise RuntimeError("Client not initialized. Call initialize() first.")
+            raise RuntimeError("Cliente no inicializado. Llamá a initialize() primero.")
             
         if entries is None:
-            # Request all available market data entries needed for Excel columns
+            # Solicitar todas las entradas de datos de mercado disponibles necesarias para las columnas de Excel
             entries = [
-                pyRofex.MarketDataEntry.BIDS,               # Best bid (BI)
-                pyRofex.MarketDataEntry.OFFERS,             # Best offer (OF)
-                pyRofex.MarketDataEntry.LAST,               # Last trade (LA)
-                pyRofex.MarketDataEntry.OPENING_PRICE,      # Open price (OP)
-                pyRofex.MarketDataEntry.CLOSING_PRICE,      # Previous close (CL)
-                pyRofex.MarketDataEntry.HIGH_PRICE,         # High price (HI)
-                pyRofex.MarketDataEntry.LOW_PRICE,          # Low price (LO)
-                pyRofex.MarketDataEntry.TRADE_EFFECTIVE_VOLUME,  # Turnover (EV)
+                pyRofex.MarketDataEntry.BIDS,               # Mejor compra (BI)
+                pyRofex.MarketDataEntry.OFFERS,             # Mejor venta (OF)
+                pyRofex.MarketDataEntry.LAST,               # Última operación (LA)
+                pyRofex.MarketDataEntry.OPENING_PRICE,      # Precio de apertura (OP)
+                pyRofex.MarketDataEntry.CLOSING_PRICE,      # Cierre anterior (CL)
+                pyRofex.MarketDataEntry.HIGH_PRICE,         # Precio máximo (HI)
+                pyRofex.MarketDataEntry.LOW_PRICE,          # Precio mínimo (LO)
+                pyRofex.MarketDataEntry.TRADE_EFFECTIVE_VOLUME,  # Monto operado (EV)
                 pyRofex.MarketDataEntry.NOMINAL_VOLUME,     # Volume (NV)
                 pyRofex.MarketDataEntry.TRADE_COUNT,        # Operations/number of trades (TC)
             ]
@@ -210,91 +210,91 @@ class pyRofexClient:
     
     def subscribe_market_data(self, symbols, entries=None):
         """
-        Subscribe to real-time market data.
-        Validates symbols before subscribing.
+        Suscribirse a datos de mercado en tiempo real.
+        Valida símbolos antes de suscribirse.
         
         Args:
-            symbols: List of symbols to subscribe to
-            entries: Market data entries to subscribe to
+            symbols: Lista de símbolos a los que suscribirse
+            entries: Entradas de datos de mercado a las que suscribirse
             
         Returns:
-            Tuple of (success: bool, valid_symbols: List[str], invalid_symbols: List[str])
+            Tupla de (éxito: bool, símbolos_válidos: List[str], símbolos_inválidos: List[str])
         """
         if not self.is_initialized:
-            raise RuntimeError("Client not initialized. Call initialize() first.")
+            raise RuntimeError("Cliente no inicializado. Llamá a initialize() primero.")
         
-        # Validate symbols first
+        # Validar símbolos primero
         valid_symbols, invalid_symbols = self.validate_symbols(symbols)
         
         if not valid_symbols:
-            logger.error("No valid symbols to subscribe to")
+            logger.error("No hay símbolos válidos para suscribirse")
             return False, [], invalid_symbols
         
         if invalid_symbols:
-            logger.warning(f"Skipping {len(invalid_symbols)} invalid symbols: {invalid_symbols}")
+            logger.warning(f"Omitiendo {len(invalid_symbols)} símbolos inválidos: {invalid_symbols}")
             
         if entries is None:
-            # Subscribe to all available market data entries needed for Excel columns
+            # Suscribirse a todas las entradas de datos de mercado disponibles necesarias para las columnas de Excel
             entries = [
-                pyRofex.MarketDataEntry.BIDS,               # Best bid (BI)
-                pyRofex.MarketDataEntry.OFFERS,             # Best offer (OF)
-                pyRofex.MarketDataEntry.LAST,               # Last trade (LA)
-                pyRofex.MarketDataEntry.OPENING_PRICE,      # Open price (OP)
-                pyRofex.MarketDataEntry.CLOSING_PRICE,      # Previous close (CL)
-                pyRofex.MarketDataEntry.HIGH_PRICE,         # High price (HI)
-                pyRofex.MarketDataEntry.LOW_PRICE,          # Low price (LO)
-                pyRofex.MarketDataEntry.TRADE_EFFECTIVE_VOLUME,  # Turnover (EV)
-                pyRofex.MarketDataEntry.NOMINAL_VOLUME,     # Volume (NV)
-                pyRofex.MarketDataEntry.TRADE_COUNT,        # Operations/number of trades (TC)
+                pyRofex.MarketDataEntry.BIDS,               # Mejor compra (BI)
+                pyRofex.MarketDataEntry.OFFERS,             # Mejor venta (OF)
+                pyRofex.MarketDataEntry.LAST,               # Última operación (LA)
+                pyRofex.MarketDataEntry.OPENING_PRICE,      # Precio de apertura (OP)
+                pyRofex.MarketDataEntry.CLOSING_PRICE,      # Cierre anterior (CL)
+                pyRofex.MarketDataEntry.HIGH_PRICE,         # Precio máximo (HI)
+                pyRofex.MarketDataEntry.LOW_PRICE,          # Precio mínimo (LO)
+                pyRofex.MarketDataEntry.TRADE_EFFECTIVE_VOLUME,  # Monto operado (EV)
+                pyRofex.MarketDataEntry.NOMINAL_VOLUME,     # Volumen (NV)
+                pyRofex.MarketDataEntry.TRADE_COUNT,        # Operaciones/cantidad de operaciones (TC)
             ]
             
         try:
             pyRofex.market_data_subscription(tickers=valid_symbols, entries=entries)
-            logger.info(f"Subscribed to market data for {len(valid_symbols)} valid symbols")
+            logger.info(f"Suscripto a datos de mercado para {len(valid_symbols)} símbolos válidos")
             return True, valid_symbols, invalid_symbols
         except Exception as e:
-            logger.error(f"Failed to subscribe to market data: {e}")
+            logger.error(f"Fallo al suscribirse a datos de mercado: {e}")
             return False, valid_symbols, invalid_symbols
     
     def set_market_data_handler(self, handler):
-        """Register (add) the market data message handler (pyRofex 0.5.x API)."""
+        """Registrar (agregar) el manejador de mensajes de datos de mercado (API pyRofex 0.5.x)."""
         if not callable(handler):
-            raise ValueError("Handler must be callable")
-        # pyRofex 0.5.0 provides add_websocket_market_data_handler
+            raise ValueError("El manejador debe ser invocable")
+        # pyRofex 0.5.0 provee add_websocket_market_data_handler
         if hasattr(pyRofex, 'add_websocket_market_data_handler'):
             pyRofex.add_websocket_market_data_handler(handler)
-            logger.info("Market data handler registered")
+            logger.info("Manejador de datos de mercado registrado")
         else:
-            raise AttributeError("pyRofex module missing add_websocket_market_data_handler")
+            raise AttributeError("El módulo pyRofex no tiene add_websocket_market_data_handler")
     
     def set_error_handler(self, handler):
-        """Register (add) the websocket error handler.""" 
+        """Registrar (agregar) el manejador de errores de websocket.""" 
         if not callable(handler):
-            raise ValueError("Handler must be callable")
+            raise ValueError("El manejador debe ser invocable")
         if hasattr(pyRofex, 'add_websocket_error_handler'):
             pyRofex.add_websocket_error_handler(handler)
-            logger.info("Error handler registered")
+            logger.info("Manejador de errores registrado")
         else:
-            logger.warning("pyRofex missing add_websocket_error_handler; handler not set")
+            logger.warning("pyRofex no tiene add_websocket_error_handler; manejador no configurado")
     
     def set_exception_handler(self, handler):
-        """Set the websocket exception handler (name differs in 0.5.x)."""
+        """Configurar el manejador de excepciones de websocket (el nombre difiere en 0.5.x)."""
         if not callable(handler):
-            raise ValueError("Handler must be callable")
+            raise ValueError("El manejador debe ser invocable")
         if hasattr(pyRofex, 'set_websocket_exception_handler'):
             pyRofex.set_websocket_exception_handler(handler)
-            logger.info("Exception handler set")
+            logger.info("Manejador de excepciones configurado")
         else:
-            logger.warning("pyRofex missing set_websocket_exception_handler; exception handler not set")
+            logger.warning("pyRofex no tiene set_websocket_exception_handler; manejador de excepciones no configurado")
     
     def close_connection(self):
-        """Close the pyRofex connection."""
+        """Cerrar la conexión de pyRofex."""
         if self.is_initialized:
             try:
                 pyRofex.close_websocket_connection()
-                logger.info("pyRofex connection closed")
+                logger.info("Conexión de pyRofex cerrada")
             except Exception as e:
-                logger.warning(f"Error closing connection: {e}")
+                logger.warning(f"Error al cerrar conexión: {e}")
         
         self.is_initialized = False
         self.is_authenticated = False

@@ -1,8 +1,8 @@
 """
-WebSocket handler for EPGB Options.
+Manejador de WebSocket para EPGB Options.
 
-This module handles WebSocket connections, message processing, and error handling
-for real-time market data from pyRofex.
+Este módulo maneja conexiones de WebSocket, procesamiento de mensajes y manejo de errores
+para datos de mercado en tiempo real desde pyRofex.
 """
 
 from datetime import datetime
@@ -15,15 +15,21 @@ from ..utils.logging import (get_logger, log_connection_event,
                              log_market_data_event)
 from ..utils.validation import (safe_float_conversion, safe_int_conversion,
                                 validate_market_data)
+from .instrument_cache import InstrumentCache
 
 logger = get_logger(__name__)
 
 
 class WebSocketHandler:
-    """Handles WebSocket connections and message processing."""
+    """Maneja conexiones de WebSocket y procesamiento de mensajes."""
     
-    def __init__(self):
-        """Initialize WebSocket handler."""
+    def __init__(self, instrument_cache: Optional[InstrumentCache] = None):
+        """
+        Inicializar manejador de WebSocket.
+        
+        Args:
+            instrument_cache: Optional InstrumentCache instance for accurate instrument classification
+        """
         self.is_connected = False
         self.connection_stats = {
             'messages_received': 0,
@@ -33,22 +39,25 @@ class WebSocketHandler:
             'connection_start': None
         }
         
-        # Data storage references (will be set by main application)
+        # Referencias de almacenamiento de datos (serán configuradas por la aplicación principal)
         self.options_df = None
         self.everything_df = None
         self.cauciones_df = None
         
+        # Instrument cache for classification
+        self.instrument_cache = instrument_cache or InstrumentCache()
+        
         # Callbacks
-        self.on_data_update = None  # Callback for when data is updated
+        self.on_data_update = None  # Callback para cuando los datos se actualizan
     
     def set_data_references(self, options_df: pd.DataFrame, everything_df: pd.DataFrame, cauciones_df: pd.DataFrame = None):
-        """Set references to main DataFrames."""
+        """Configurar referencias a los DataFrames principales."""
         self.options_df = options_df
         self.everything_df = everything_df
         self.cauciones_df = cauciones_df if cauciones_df is not None else pd.DataFrame()
     
     def set_update_callback(self, callback: Callable):
-        """Set callback function for data updates."""
+        """Configurar función de callback para actualizaciones de datos."""
         self.on_data_update = callback
     
     def market_data_handler(self, message: Dict[str, Any]):
@@ -198,9 +207,19 @@ class WebSocketHandler:
         logger.debug(f"Updated {symbol}: last={data_row['last']}, bid={data_row['bid']}, ask={data_row['ask']}")
     
     def _is_options_symbol(self, symbol: str) -> bool:
-        """Determine if symbol represents an options contract."""
-        options_indicators = ['CALL', 'PUT', 'C ', 'P ', 'OPTION']
-        return any(indicator in symbol.upper() for indicator in options_indicators)
+        """
+        Determine if symbol represents an options contract.
+        
+        Uses InstrumentCache for accurate classification based on cficode.
+        Falls back to pattern matching if cache unavailable.
+        
+        Args:
+            symbol: Symbol to check
+            
+        Returns:
+            True if symbol is an option
+        """
+        return self.instrument_cache.is_option_symbol(symbol)
     
     def _is_caucion_symbol(self, symbol: str) -> bool:
         """Determine if symbol represents a caucion (repo)."""

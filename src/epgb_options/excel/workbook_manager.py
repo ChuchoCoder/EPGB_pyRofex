@@ -1,27 +1,29 @@
 """
-Excel workbook manager for EPGB Options.
+Administrador de libros de Excel para EPGB Options.
 
-This module handles Excel workbook connections and management.
+Este módulo maneja las conexiones y administración de libros de Excel.
 """
 
-import xlwings as xw
 from pathlib import Path
 from typing import Optional
+
+import xlwings as xw
+
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 class WorkbookManager:
-    """Manages Excel workbook connections and operations."""
+    """Administra conexiones y operaciones de libros de Excel."""
     
     def __init__(self, excel_file: str, excel_path: str = "./"):
         """
-        Initialize workbook manager.
+        Inicializar administrador de libros.
         
         Args:
-            excel_file: Excel file name
-            excel_path: Path to Excel file
+            excel_file: Nombre del archivo de Excel
+            excel_path: Ruta al archivo de Excel
         """
         self.excel_file = excel_file
         self.excel_path = excel_path
@@ -30,72 +32,72 @@ class WorkbookManager:
     
     def connect(self) -> bool:
         """
-        Connect to Excel workbook.
+        Conectar al libro de Excel.
         
         Returns:
-            bool: True if connection successful, False otherwise
+            bool: True si la conexión es exitosa, False en caso contrario
         """
         try:
-            # Construct full path
+            # Construir ruta completa
             full_path = Path(self.excel_path) / self.excel_file
             
-            # Check if file exists
+            # Verificar si el archivo existe
             if not full_path.exists():
-                logger.error(f"Excel file not found: {full_path}")
+                logger.error(f"Archivo de Excel no encontrado: {full_path}")
                 return False
             
-            # Connect to workbook
+            # Conectar al libro
             self.workbook = xw.Book(str(full_path))
             self._is_connected = True
             
-            logger.info(f"Connected to Excel workbook: {self.excel_file}")
+            logger.info(f"Conectado al libro de Excel: {self.excel_file}")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to connect to Excel workbook: {e}")
+            logger.error(f"Fallo al conectar al libro de Excel: {e}")
             self._is_connected = False
             return False
     
     def disconnect(self):
-        """Disconnect from Excel workbook."""
+        """Desconectar del libro de Excel."""
         if self.workbook and self._is_connected:
             try:
-                # Note: We don't close the workbook as it might be in use
-                # Just clear our reference
+                # Nota: No cerramos el libro ya que podría estar en uso
+                # Sólo limpiamos nuestra referencia
                 self.workbook = None
                 self._is_connected = False
-                logger.info("Disconnected from Excel workbook")
+                logger.info("Desconectado del libro de Excel")
             except Exception as e:
-                logger.warning(f"Error during disconnect: {e}")
+                logger.warning(f"Error durante la desconexión: {e}")
     
     def get_sheet(self, sheet_name: str) -> Optional[xw.Sheet]:
         """
-        Get a specific sheet from the workbook.
+        Obtener una hoja específica del libro.
         
         Args:
-            sheet_name: Name of the sheet to retrieve
+            sheet_name: Nombre de la hoja a recuperar
             
         Returns:
-            xlwings.Sheet or None: Sheet object if found, None otherwise
+            xlwings.Sheet or None: Objeto Sheet si se encuentra, None en caso contrario
         """
         if not self.is_connected():
-            logger.error("Not connected to workbook")
+            logger.error("No conectado al libro")
             return None
         
         try:
             sheet = self.workbook.sheets(sheet_name)
-            logger.debug(f"Retrieved sheet: {sheet_name}")
+            logger.debug(f"Hoja recuperada: {sheet_name}")
             return sheet
         except Exception as e:
-            logger.error(f"Failed to get sheet '{sheet_name}': {e}")
+            logger.error(f"Fallo al obtener hoja '{sheet_name}': {e}")
             return None
     
     def is_connected(self) -> bool:
         """
-        Check if connected to workbook.
+        Verificar si está conectado al libro.
         
         Returns:
-            bool: True if connected, False otherwise
+            bool: True si está conectado, False en caso contrario
         """
         return self._is_connected and self.workbook is not None
     
