@@ -58,6 +58,10 @@ class EPGBOptionsApp:
             if not self._validate_configurations():
                 return False
             
+            # Inicializar componentes de datos de mercado (poblar cache de instrumentos)
+            if not self._initialize_market_data_components():
+                return False
+            
             # Inicializar componentes de Excel
             if not self._initialize_excel_components():
                 return False
@@ -66,9 +70,15 @@ class EPGBOptionsApp:
             if not self._load_symbols():
                 return False
             
-            # Inicializar componentes de datos de mercado
-            if not self._initialize_market_data_components():
+            # Validar y filtrar símbolos contra el cache de instrumentos
+            if not self._validate_and_filter_symbols():
                 return False
+            
+            # Configurar referencias de datos ahora que los DataFrames están cargados y validados
+            self.websocket_handler.set_data_references(self.options_df, self.everything_df, self.cauciones_df)
+            
+            # Configurar cache de instrumentos en sheet operations para detección de opciones
+            self.sheet_operations.set_instrument_cache(self.api_client.instrument_cache)
             
             logger.info("✅ Inicialización de la aplicación completada exitosamente")
             return True
@@ -175,6 +185,95 @@ class EPGBOptionsApp:
             logger.error(f"Error al cargar símbolos: {e}")
             return False
     
+    def _validate_and_filter_symbols(self) -> bool:
+        """
+        Validar y filtrar símbolos contra el cache de instrumentos disponibles.
+        
+        Remueve símbolos del Excel que no existen en el mercado según pyRofex.
+        
+        Returns:
+            bool: True si quedan símbolos válidos después del filtrado, False en caso contrario
+        """
+        try:
+            logger.info("Validando símbolos contra instrumentos disponibles en pyRofex...")
+            
+            total_invalid = 0
+            
+            # Validar opciones
+            if not self.options_df.empty:
+                original_count = len(self.options_df)
+                valid_options, invalid_options = self.api_client.validate_symbols(
+                    list(self.options_df.index)
+                )
+                
+                if invalid_options:
+                    logger.warning(f"⚠️  {len(invalid_options)} opciones inválidas encontradas en Excel:")
+                    for symbol in invalid_options[:10]:  # Mostrar primeras 10
+                        logger.warning(f"    - {symbol}")
+                    if len(invalid_options) > 10:
+                        logger.warning(f"    ... y {len(invalid_options) - 10} más")
+                    
+                    # Filtrar símbolos inválidos
+                    self.options_df = self.options_df.loc[valid_options]
+                    total_invalid += len(invalid_options)
+                    logger.info(f"Opciones: {len(valid_options)}/{original_count} válidas")
+            
+            # Validar valores
+            if not self.everything_df.empty:
+                original_count = len(self.everything_df)
+                valid_securities, invalid_securities = self.api_client.validate_symbols(
+                    list(self.everything_df.index)
+                )
+                
+                if invalid_securities:
+                    logger.warning(f"⚠️  {len(invalid_securities)} valores inválidos encontrados en Excel:")
+                    for symbol in invalid_securities[:10]:
+                        logger.warning(f"    - {symbol}")
+                    if len(invalid_securities) > 10:
+                        logger.warning(f"    ... y {len(invalid_securities) - 10} más")
+                    
+                    # Filtrar símbolos inválidos
+                    self.everything_df = self.everything_df.loc[valid_securities]
+                    total_invalid += len(invalid_securities)
+                    logger.info(f"Valores: {len(valid_securities)}/{original_count} válidos")
+            
+            # Validar cauciones
+            if not self.cauciones_df.empty:
+                original_count = len(self.cauciones_df)
+                valid_cauciones, invalid_cauciones = self.api_client.validate_symbols(
+                    list(self.cauciones_df.index)
+                )
+                
+                if invalid_cauciones:
+                    logger.warning(f"⚠️  {len(invalid_cauciones)} cauciones inválidas encontradas en Excel:")
+                    for symbol in invalid_cauciones[:10]:
+                        logger.warning(f"    - {symbol}")
+                    if len(invalid_cauciones) > 10:
+                        logger.warning(f"    ... y {len(invalid_cauciones) - 10} más")
+                    
+                    # Filtrar símbolos inválidos
+                    self.cauciones_df = self.cauciones_df.loc[valid_cauciones]
+                    total_invalid += len(invalid_cauciones)
+                    logger.info(f"Cauciones: {len(valid_cauciones)}/{original_count} válidas")
+            
+            # Resumen final
+            total_valid = len(self.options_df) + len(self.everything_df) + len(self.cauciones_df)
+            
+            if total_invalid > 0:
+                logger.warning(f"⚠️  Total: {total_invalid} símbolos inválidos removidos del Excel")
+            
+            logger.info(f"✅ {total_valid} símbolos válidos listos para suscripción")
+            
+            if total_valid == 0:
+                logger.error("❌ No hay símbolos válidos después del filtrado")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al validar y filtrar símbolos: {e}")
+            return False
+    
     def _initialize_market_data_components(self) -> bool:
         """Inicializar componentes de datos de mercado."""
         try:
@@ -216,8 +315,8 @@ class EPGBOptionsApp:
                 logger.warning("⚠️  No se encontraron opciones en el caché de instrumentos")
             
             # Inicializar manejador de WebSocket con caché de instrumentos compartido (ya poblado)
+            # Nota: set_data_references será llamado después de cargar símbolos desde Excel
             self.websocket_handler = WebSocketHandler(instrument_cache=self.api_client.instrument_cache)
-            self.websocket_handler.set_data_references(self.options_df, self.everything_df, self.cauciones_df)
             self.websocket_handler.set_update_callback(self._on_data_update)
             
             # Inicializar procesador de datos
@@ -227,9 +326,6 @@ class EPGBOptionsApp:
             self.api_client.set_market_data_handler(self.websocket_handler.market_data_handler)
             self.api_client.set_error_handler(self.websocket_handler.websocket_error_handler)
             self.api_client.set_exception_handler(self.websocket_handler.websocket_exception_handler)
-            
-            # Set instrument cache in sheet operations for option detection
-            self.sheet_operations.set_instrument_cache(self.api_client.instrument_cache)
             
             logger.info("✅ Componentes de datos de mercado inicializados")
             return True
@@ -253,53 +349,38 @@ class EPGBOptionsApp:
         # Por ahora, sólo registramos la actualización
     
     def start_market_data_subscription(self) -> bool:
-        """Comenzar suscripción a datos de mercado."""
+        """
+        Comenzar suscripción a datos de mercado.
+        
+        Nota: Los símbolos ya fueron validados y filtrados en _validate_and_filter_symbols(),
+        por lo que todos los símbolos en los DataFrames son válidos.
+        """
         try:
             logger.info("Iniciando suscripción a datos de mercado...")
             
-            # Los instrumentos ya fueron cargados durante la inicialización
-            # Solo necesitamos validar y suscribirnos
-            
-            # Suscribirse a opciones
+            # Suscribirse a opciones (ya validadas)
             if not self.options_df.empty:
                 options_symbols = list(self.options_df.index)
-                success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(options_symbols)
-                
-                if invalid_symbols:
-                    logger.warning(f"Se omitieron {len(invalid_symbols)} símbolos de opciones inválidos")
-                    
-                if not success or not valid_symbols:
+                if not self.api_client.subscribe_market_data(options_symbols):
                     logger.error("Fallo al suscribirse a datos de opciones")
                     return False
-                    
-                logger.info(f"Suscripto a {len(valid_symbols)} opciones")
+                logger.info(f"✅ Suscripto a {len(options_symbols)} opciones")
             
-            # Suscribirse a otros valores  
+            # Suscribirse a otros valores (ya validados)
             if not self.everything_df.empty:
                 securities_symbols = list(self.everything_df.index)
-                success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(securities_symbols)
-                
-                if invalid_symbols:
-                    logger.warning(f"Se omitieron {len(invalid_symbols)} símbolos de valores inválidos")
-                    
-                if not success or not valid_symbols:
+                if not self.api_client.subscribe_market_data(securities_symbols):
                     logger.error("Fallo al suscribirse a datos de valores")
                     return False
-                    
-                logger.info(f"Suscripto a {len(valid_symbols)} valores")
+                logger.info(f"✅ Suscripto a {len(securities_symbols)} valores")
             
-            # Suscribirse a cauciones (DataFrame separado, sólo actualiza tabla derecha)
+            # Suscribirse a cauciones (ya validadas)
             if not self.cauciones_df.empty:
                 cauciones_symbols = list(self.cauciones_df.index)
-                success, valid_symbols, invalid_symbols = self.api_client.subscribe_market_data(cauciones_symbols)
-                
-                if invalid_symbols:
-                    logger.warning(f"Se omitieron {len(invalid_symbols)} símbolos de cauciones inválidos")
-                    
-                if success and valid_symbols:
-                    logger.info(f"Suscripto a {len(valid_symbols)} cauciones")
+                if self.api_client.subscribe_market_data(cauciones_symbols):
+                    logger.info(f"✅ Suscripto a {len(cauciones_symbols)} cauciones")
                 else:
-                    logger.warning("No hay cauciones válidas para suscribirse")
+                    logger.warning("No se pudo suscribir a cauciones")
             
             log_connection_event("Suscripción a Datos de Mercado", "Iniciado exitosamente")
             return True

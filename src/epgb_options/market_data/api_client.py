@@ -208,53 +208,45 @@ class pyRofexClient:
             logger.error(f"Failed to get market data: {e}")
             raise
     
-    def subscribe_market_data(self, symbols, entries=None):
+    def subscribe_market_data(self, symbols):
         """
         Suscribirse a datos de mercado en tiempo real.
-        Valida símbolos antes de suscribirse.
+        
+        IMPORTANTE: Se espera que los símbolos ya hayan sido validados previamente
+        en _validate_and_filter_symbols() para evitar validación redundante.
         
         Args:
-            symbols: Lista de símbolos a los que suscribirse
-            entries: Entradas de datos de mercado a las que suscribirse
+            symbols: Lista de símbolos pre-validados a los que suscribirse
             
         Returns:
-            Tupla de (éxito: bool, símbolos_válidos: List[str], símbolos_inválidos: List[str])
+            bool: True si la suscripción fue exitosa, False en caso contrario
         """
         if not self.is_initialized:
             raise RuntimeError("Cliente no inicializado. Llamá a initialize() primero.")
         
-        # Validar símbolos primero
-        valid_symbols, invalid_symbols = self.validate_symbols(symbols)
+        logger.debug(f"Suscribiendo a {len(symbols)} símbolos pre-validados")
         
-        if not valid_symbols:
-            logger.error("No hay símbolos válidos para suscribirse")
-            return False, [], invalid_symbols
-        
-        if invalid_symbols:
-            logger.warning(f"Omitiendo {len(invalid_symbols)} símbolos inválidos: {invalid_symbols}")
-            
-        if entries is None:
-            # Suscribirse a todas las entradas de datos de mercado disponibles necesarias para las columnas de Excel
-            entries = [
-                pyRofex.MarketDataEntry.BIDS,               # Mejor compra (BI)
-                pyRofex.MarketDataEntry.OFFERS,             # Mejor venta (OF)
-                pyRofex.MarketDataEntry.LAST,               # Última operación (LA)
-                pyRofex.MarketDataEntry.OPENING_PRICE,      # Precio de apertura (OP)
-                pyRofex.MarketDataEntry.CLOSING_PRICE,      # Cierre anterior (CL)
-                pyRofex.MarketDataEntry.HIGH_PRICE,         # Precio máximo (HI)
-                pyRofex.MarketDataEntry.LOW_PRICE,          # Precio mínimo (LO)
-                pyRofex.MarketDataEntry.TRADE_EFFECTIVE_VOLUME,  # Monto operado (EV)
-                pyRofex.MarketDataEntry.NOMINAL_VOLUME,     # Volumen (NV)
-                pyRofex.MarketDataEntry.TRADE_COUNT,        # Operaciones/cantidad de operaciones (TC)
-            ]
+        # Definir entradas de datos de mercado necesarias para las columnas de Excel
+        entries = [
+            pyRofex.MarketDataEntry.BIDS,               # Mejor compra (BI)
+            pyRofex.MarketDataEntry.OFFERS,             # Mejor venta (OF)
+            pyRofex.MarketDataEntry.LAST,               # Última operación (LA)
+            pyRofex.MarketDataEntry.OPENING_PRICE,      # Precio de apertura (OP)
+            pyRofex.MarketDataEntry.CLOSING_PRICE,      # Cierre anterior (CL)
+            pyRofex.MarketDataEntry.HIGH_PRICE,         # Precio máximo (HI)
+            pyRofex.MarketDataEntry.LOW_PRICE,          # Precio mínimo (LO)
+            pyRofex.MarketDataEntry.TRADE_EFFECTIVE_VOLUME,  # Monto operado (EV)
+            pyRofex.MarketDataEntry.NOMINAL_VOLUME,     # Volumen (NV)
+            pyRofex.MarketDataEntry.TRADE_COUNT,        # Operaciones/cantidad de operaciones (TC)
+        ]
             
         try:
-            pyRofex.market_data_subscription(tickers=valid_symbols, entries=entries)
-            logger.info(f"Suscripto a datos de mercado para {len(valid_symbols)} símbolos válidos")
-            return True, valid_symbols, invalid_symbols
+            pyRofex.market_data_subscription(tickers=symbols, entries=entries)
+            logger.info(f"Suscripto a datos de mercado para {len(symbols)} símbolos")
+            return True
         except Exception as e:
             logger.error(f"Fallo al suscribirse a datos de mercado: {e}")
-            return False, valid_symbols, invalid_symbols
+            return False
     
     def set_market_data_handler(self, handler):
         """Registrar (agregar) el manejador de mensajes de datos de mercado (API pyRofex 0.5.x)."""
