@@ -228,6 +228,9 @@ class EPGBOptionsApp:
             self.api_client.set_error_handler(self.websocket_handler.websocket_error_handler)
             self.api_client.set_exception_handler(self.websocket_handler.websocket_exception_handler)
             
+            # Set instrument cache in sheet operations for option detection
+            self.sheet_operations.set_instrument_cache(self.api_client.instrument_cache)
+            
             logger.info("✅ Componentes de datos de mercado inicializados")
             return True
             

@@ -22,19 +22,31 @@ logger = get_logger(__name__)
 class SheetOperations:
     """Maneja operaciones de hojas de Excel para lectura y escritura de datos."""
     
-    def __init__(self, workbook: xw.Book):
+    def __init__(self, workbook: xw.Book, instrument_cache=None):
         """
         Inicializar operaciones de hojas.
         
         Args:
             workbook: Objeto Workbook de xlwings
+            instrument_cache: Optional InstrumentCache instance for option detection
         """
         self.workbook = workbook
+        self.instrument_cache = instrument_cache
         self.update_stats = {
             'updates_performed': 0,
             'errors': 0,
             'last_update_time': None
         }
+    
+    def set_instrument_cache(self, instrument_cache):
+        """
+        Set the instrument cache for option detection.
+        
+        Args:
+            instrument_cache: InstrumentCache instance
+        """
+        self.instrument_cache = instrument_cache
+        logger.debug("Instrument cache set for option detection")
     
     def read_range(self, sheet_name: str, range_address: str) -> Any:
         """
@@ -300,8 +312,13 @@ class SheetOperations:
             for i, symbol in enumerate(symbols):
                 row_num = start_row + i
                 
-                # Clean symbol for display (remove "MERV - XMEV - " prefix)
-                display_symbol = clean_symbol_for_display(symbol)
+                # Check if symbol is an option (for proper display formatting)
+                is_option = False
+                if self.instrument_cache:
+                    is_option = self.instrument_cache.is_option_symbol(symbol)
+                
+                # Clean symbol for display (remove "MERV - XMEV - " prefix, and " - 24hs" for options)
+                display_symbol = clean_symbol_for_display(symbol, is_option=is_option)
                 
                 # Prepare row: [symbol, bid_size, bid, ask, ask_size, last, change, open, high, low, previous_close, turnover, volume, operations, datetime]
                 row_data = [display_symbol] + [0] * 13 + ['']  # 13 numeric columns + 1 datetime column

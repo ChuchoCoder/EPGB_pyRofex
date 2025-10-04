@@ -240,19 +240,22 @@ def _should_add_default_suffix(symbol: str) -> bool:
     return True
 
 
-def clean_symbol_for_display(symbol: str) -> str:
+def clean_symbol_for_display(symbol: str, is_option: bool = False) -> str:
     """
     Clean symbol for Excel display by removing "MERV - XMEV - " prefix.
+    For options, also remove the " - 24hs" suffix.
     
     Args:
         symbol: Symbol with pyRofex format (e.g., "MERV - XMEV - GGAL - 24hs")
+        is_option: Whether the symbol represents an option
         
     Returns:
-        str: Cleaned symbol for display (e.g., "GGAL - 24hs")
+        str: Cleaned symbol for display
         
     Examples:
-        - "MERV - XMEV - GGAL - 24hs" → "GGAL - 24hs"
-        - "MERV - XMEV - PESOS - 3D" → "PESOS - 3D"
+        - "MERV - XMEV - GGAL - 24hs" → "GGAL - 24hs" (regular security)
+        - "MERV - XMEV - GFGV38566O - 24hs" → "GFGV38566O" (option, no suffix)
+        - "MERV - XMEV - PESOS - 3D" → "PESOS - 3D" (caucion)
         - "GGAL - 24hs" → "GGAL - 24hs" (unchanged if no prefix)
     """
     if not symbol or not isinstance(symbol, str):
@@ -260,10 +263,15 @@ def clean_symbol_for_display(symbol: str) -> str:
     
     # Remove "MERV - XMEV - " prefix if present
     prefix = "MERV - XMEV - "
+    result = symbol
     if symbol.startswith(prefix):
-        return symbol[len(prefix):]
+        result = symbol[len(prefix):]
     
-    return symbol
+    # For options, also remove " - 24hs" suffix
+    if is_option and result.endswith(" - 24hs"):
+        result = result[:-len(" - 24hs")]
+    
+    return result
 
 
 def restore_symbol_prefix(display_symbol: str) -> str:
