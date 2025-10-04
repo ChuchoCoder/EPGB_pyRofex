@@ -38,10 +38,14 @@
 - pyrofex_symbol: string (transformed symbol with prefix/suffix changes)
 - instrument_type: string (options, stocks, bonds, cedears, cauciones)
 
-**Transformation Rules**:
-- Add "MERV - XMEV - " prefix to all symbols
+**Transformation Rules** (based on analysis of 7,590 real pyRofex instruments):
+- Add "MERV - XMEV - " prefix ONLY to MERV market securities (93% of symbols)
+- Do NOT add prefix to: ROS options (295), ROS futures (52), DLR futures/options (84), most indices (4), international markets (~60)
+- Exception: "I.MERVAL" DOES get MERV prefix (special case)
 - Replace " - spot" suffix with " - CI"
-- Preserve other suffixes (" - 24hs", etc.)
+- Add " - 24hs" as default suffix ONLY for MERV securities without suffix
+- Do NOT add default suffix for: cauciones (PESOS - XD), indices, options, futures
+- Preserve existing suffixes (" - 24hs", " - 48hs", " - 72hs", " - CI", " - T0", " - T1", " - T2", etc.)
 
 **Validation Rules**:
 - raw_symbol: required, must exist in Tickers sheet

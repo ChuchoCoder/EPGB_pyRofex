@@ -1,0 +1,15 @@
+# EPGB Options Market Data Dependencies
+# Generated from pyproject.toml - Core dependencies for production use
+#
+# Installation:
+# pip install -r requirements.txt
+#
+# For development dependencies:
+# pip install -e ".[dev]"
+
+# Core dependencies
+pyRofex>=1.12.0
+xlwings>=0.31.0
+pandas>=2.0.0
+python-dotenv>=1.0.0
+python-dateutil>=2.8.0

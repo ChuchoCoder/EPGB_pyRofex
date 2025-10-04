@@ -118,6 +118,13 @@ credentials.json
 .env.local
 local_settings.py
 
+# EPGB Configuration - Environment Variables
+!.env.example
+.env
+.env.production
+.env.development
+.env.staging
+
 # Build artifacts
 dist/
 build/

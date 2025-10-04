@@ -1,0 +1,13 @@
+# EPGB Options Market Data Development Dependencies
+# Include core dependencies plus development tools
+#
+# Installation:
+# pip install -r requirements-dev.txt
+
+# Include core requirements
+-r requirements.txt
+
+# Development tools
+ruff>=0.1.0         # Modern Python linter and formatter
+mypy>=1.0.0         # Static type checking
+pre-commit>=3.0.0   # Git hooks for code quality
