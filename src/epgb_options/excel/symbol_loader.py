@@ -90,6 +90,7 @@ class SymbolLoader:
             transformed_options = [transform_symbol_for_pyrofex(opt) for opt in valid_options]
             
             # Crear DataFrame con columnas necesarias para opciones
+            # IMPORTANTE: Incluir TODAS las columnas que el WebSocket handler actualiza
             options_df = pd.DataFrame({
                 'symbol': transformed_options,
                 'bid': 0.0,
@@ -98,7 +99,13 @@ class SymbolLoader:
                 'asksize': 0,
                 'last': 0.0,
                 'change': 0.0,
+                'open': 0.0,              # AGREGADO: Precio de apertura
+                'high': 0.0,              # AGREGADO: Precio máximo
+                'low': 0.0,               # AGREGADO: Precio mínimo
+                'previous_close': 0.0,    # AGREGADO: Cierre anterior
+                'turnover': 0.0,          # AGREGADO: Monto operado
                 'volume': 0,
+                'operations': 0,          # AGREGADO: Cantidad de operaciones
                 'datetime': pd.Timestamp.now()
             })
             
