@@ -7,15 +7,16 @@ soporte para variables de entorno usando python-dotenv.
 
 # Import all configuration variables and functions
 try:
-    from .excel_config import (EXCEL_FILE, EXCEL_PATH, SHEET_HOMEBROKER,
-                               SHEET_TICKERS, validate_excel_config)
+    from .excel_config import (EXCEL_FILE, EXCEL_PATH, EXCEL_SHEET_PRICES,
+                               EXCEL_SHEET_TICKERS, EXCEL_UPDATE_INTERVAL,
+                               validate_excel_config)
     from .pyrofex_config import (ACCOUNT, API_URL, ENVIRONMENT, PASSWORD, USER,
                                  WS_URL, validate_pyRofex_config)
     
     __all__ = [
         # Excel configuration
-        'EXCEL_FILE', 'EXCEL_PATH', 'SHEET_HOMEBROKER', 'SHEET_TICKERS',
-        'validate_excel_config',
+        'EXCEL_FILE', 'EXCEL_PATH', 'EXCEL_SHEET_PRICES', 'EXCEL_SHEET_TICKERS',
+        'EXCEL_UPDATE_INTERVAL', 'validate_excel_config',
         
         # pyRofex configuration  
         'ENVIRONMENT', 'API_URL', 'WS_URL', 'USER', 'PASSWORD', 'ACCOUNT',

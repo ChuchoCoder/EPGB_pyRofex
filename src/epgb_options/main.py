@@ -11,7 +11,8 @@ from typing import Any, Dict
 
 import pandas as pd
 
-from .config import (EXCEL_FILE, EXCEL_PATH, SHEET_HOMEBROKER, SHEET_TICKERS,
+from .config import (EXCEL_FILE, EXCEL_PATH, EXCEL_SHEET_PRICES,
+                     EXCEL_SHEET_TICKERS, EXCEL_UPDATE_INTERVAL,
                      validate_excel_config, validate_pyRofex_config)
 from .excel import SheetOperations, SymbolLoader, WorkbookManager
 from .market_data import DataProcessor, WebSocketHandler, pyRofexClient
@@ -128,9 +129,9 @@ class EPGBOptionsApp:
                 return False
             
             # Obtener hoja de tickers
-            tickers_sheet = self.workbook_manager.get_sheet(SHEET_TICKERS)
+            tickers_sheet = self.workbook_manager.get_sheet(EXCEL_SHEET_TICKERS)
             if not tickers_sheet:
-                logger.error(f"No se pudo acceder a la hoja {SHEET_TICKERS}")
+                logger.error(f"No se pudo acceder a la hoja {EXCEL_SHEET_TICKERS}")
                 return False
             
             # Inicializar cargador de símbolos
@@ -394,25 +395,25 @@ class EPGBOptionsApp:
         try:
             logger.debug("Actualizando Excel con datos actuales...")
             
-            # Actualizar hoja HomeBroker con datos de valores (excluyendo cauciones)
+            # Actualizar hoja Prices con datos de valores (excluyendo cauciones)
             if not self.everything_df.empty:
-                success = self.sheet_operations.update_market_data_to_homebroker_sheet(
-                    self.everything_df, SHEET_HOMEBROKER, self.cauciones_df
+                success = self.sheet_operations.update_market_data_to_prices_sheet(
+                    self.everything_df, EXCEL_SHEET_PRICES, self.cauciones_df
                 )
                 if not success:
-                    logger.warning("Fallo al actualizar hoja HomeBroker")
+                    logger.warning("Fallo al actualizar hoja Prices")
             
-            # Actualizar opciones en HomeBroker sheet
+            # Actualizar opciones en Prices sheet
             if not self.options_df.empty:
                 # Opciones usan bidsize/asksize sin underscore, necesitamos renombrar para compatibilidad con Excel
                 options_for_excel = self.options_df.copy()
                 options_for_excel = options_for_excel.rename(columns={'bidsize': 'bid_size', 'asksize': 'ask_size'})
                 
-                success = self.sheet_operations.update_market_data_to_homebroker_sheet(
-                    options_for_excel, SHEET_HOMEBROKER, cauciones_df=None
+                success = self.sheet_operations.update_market_data_to_prices_sheet(
+                    options_for_excel, EXCEL_SHEET_PRICES, cauciones_df=None
                 )
                 if not success:
-                    logger.warning("Fallo al actualizar opciones en HomeBroker")
+                    logger.warning("Fallo al actualizar opciones en Prices")
             
             logger.debug("Actualización de Excel completada")
             return True
@@ -463,8 +464,8 @@ class EPGBOptionsApp:
                     # Actualizar Excel periódicamente
                     self.update_excel_with_current_data()
                     
-                    # Dormir por un intervalo corto
-                    time.sleep(1)
+                    # Dormir por el intervalo configurado
+                    time.sleep(EXCEL_UPDATE_INTERVAL)
                     
             except KeyboardInterrupt:
                 logger.info("Interrupción de teclado recibida - cerrando correctamente")

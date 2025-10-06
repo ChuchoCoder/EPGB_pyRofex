@@ -120,7 +120,7 @@ Task: "Validate pyRofex API initialization through configuration system"
 ### T007: Create excel_config.py
 **File**: `excel_config.py`
 **Description**: Excel configuration module with dotenv integration
-**Interface**: EXCEL_FILE, SHEET_HOMEBROKER, SHEET_TICKERS, EXCEL_PATH constants
+**Interface**: EXCEL_FILE, EXCEL_SHEET_PRICES, EXCEL_SHEET_TICKERS, EXCEL_PATH constants
 **Validation**: validate_excel_config() function with file extension and path checks
 **Environment**: Support EXCEL_* environment variable overrides
 
@@ -144,8 +144,8 @@ Task: "Validate pyRofex API initialization through configuration system"
 **Changes**: 
   - `import excel_config`
   - Replace `'EPGB OC-DI - Python.xlsb'` with `excel_config.EXCEL_FILE`
-  - Replace `'HomeBroker'` with `excel_config.SHEET_HOMEBROKER`
-  - Replace `'Tickers'` with `excel_config.SHEET_TICKERS`
+  - Replace `'HomeBroker'` with `excel_config.EXCEL_SHEET_PRICES`
+  - Replace `'Tickers'` with `excel_config.EXCEL_SHEET_TICKERS`
 
 ### T011: Refactor main_HM.py - pyRofex configuration
 **File**: `main_HM.py`
@@ -163,7 +163,7 @@ Task: "Validate pyRofex API initialization through configuration system"
 **Changes**:
   - `import excel_config`
   - Replace `'EPGB OC-DI - Python.xlsb'` with `excel_config.EXCEL_FILE`
-  - Replace `'Tickers'` with `excel_config.SHEET_TICKERS`
+  - Replace `'Tickers'` with `excel_config.EXCEL_SHEET_TICKERS`
 
 ### T013: Add configuration validation to startup
 **File**: `main_HM.py`
@@ -206,7 +206,7 @@ Task: "Validate pyRofex API initialization through configuration system"
 **Cross-reference**: Quickstart Step 6 Excel initialization sequence
 **Test Cases**:
   - Excel file opens using excel_config.EXCEL_FILE
-  - Sheet access using excel_config.SHEET_HOMEBROKER and SHEET_TICKERS
+  - Sheet access using excel_config.EXCEL_SHEET_PRICES and EXCEL_SHEET_TICKERS
   - Path resolution using excel_config.EXCEL_PATH
   - Environment variable overrides work for Excel settings
 

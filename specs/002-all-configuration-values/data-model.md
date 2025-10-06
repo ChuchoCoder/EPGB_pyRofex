@@ -11,13 +11,13 @@ Data model for configuration management system with separate modules for Excel a
 
 **Attributes**:
 - `EXCEL_FILE`: str - Name of Excel workbook file (e.g., "EPGB OC-DI - Python.xlsb")
-- `SHEET_HOMEBROKER`: str - Name of HomeBroker data sheet (e.g., "HomeBroker")  
-- `SHEET_TICKERS`: str - Name of Tickers configuration sheet (e.g., "Tickers")
+- `EXCEL_SHEET_PRICES`: str - Name of HomeBroker data sheet (e.g., "HomeBroker")  
+- `EXCEL_SHEET_TICKERS`: str - Name of Tickers configuration sheet (e.g., "Tickers")
 - `EXCEL_PATH`: str - Directory path containing Excel file (e.g., "./")
 
 **Validation Rules**:
 - EXCEL_FILE must have valid Excel extension (.xlsb, .xlsx, .xls)
-- SHEET_HOMEBROKER and SHEET_TICKERS must be non-empty strings
+- EXCEL_SHEET_PRICES and EXCEL_SHEET_TICKERS must be non-empty strings
 - EXCEL_PATH must be valid directory path
 - Excel file at EXCEL_PATH/EXCEL_FILE should be accessible
 

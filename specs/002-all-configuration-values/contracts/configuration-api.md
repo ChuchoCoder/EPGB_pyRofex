@@ -8,8 +8,8 @@
 ```python
 # Configuration Constants
 EXCEL_FILE: str              # Excel workbook filename
-SHEET_HOMEBROKER: str       # HomeBroker sheet name  
-SHEET_TICKERS: str          # Tickers sheet name
+EXCEL_SHEET_PRICES: str       # HomeBroker sheet name  
+EXCEL_SHEET_TICKERS: str          # Tickers sheet name
 EXCEL_PATH: str             # Directory path to Excel file
 
 # Validation Function
@@ -22,8 +22,8 @@ def validate_excel_config() -> List[str]:
     
     Validation Rules:
         - EXCEL_FILE must have valid Excel extension (.xlsb, .xlsx, .xls)
-        - SHEET_HOMEBROKER must be non-empty string
-        - SHEET_TICKERS must be non-empty string  
+        - EXCEL_SHEET_PRICES must be non-empty string
+        - EXCEL_SHEET_TICKERS must be non-empty string  
         - EXCEL_PATH must be valid directory path
     """
 ```
@@ -31,8 +31,8 @@ def validate_excel_config() -> List[str]:
 **Environment Variable Overrides:**
 - `EXCEL_FILE` → overrides EXCEL_FILE
 - `EXCEL_PATH` → overrides EXCEL_PATH
-- `SHEET_HOMEBROKER` → overrides SHEET_HOMEBROKER  
-- `SHEET_TICKERS` → overrides SHEET_TICKERS
+- `EXCEL_SHEET_PRICES` → overrides EXCEL_SHEET_PRICES  
+- `EXCEL_SHEET_TICKERS` → overrides EXCEL_SHEET_TICKERS
 
 **Usage Contract:**
 ```python
@@ -42,8 +42,8 @@ import excel_config
 # Access values (guaranteed to be loaded with env var precedence)
 workbook_path = os.path.join(excel_config.EXCEL_PATH, excel_config.EXCEL_FILE)
 wb = xw.Book(workbook_path)
-homebroker_sheet = wb.sheets(excel_config.SHEET_HOMEBROKER)
-tickers_sheet = wb.sheets(excel_config.SHEET_TICKERS)
+homebroker_sheet = wb.sheets(excel_config.EXCEL_SHEET_PRICES)
+tickers_sheet = wb.sheets(excel_config.EXCEL_SHEET_TICKERS)
 
 # Validate before use
 errors = excel_config.validate_excel_config()

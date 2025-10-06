@@ -121,7 +121,7 @@ else:
 
 **Configuration Mapping**:
 - Excel file name → excel_config.EXCEL_FILE  
-- Sheet names → excel_config.SHEET_HOMEBROKER, excel_config.SHEET_TICKERS
+- Sheet names → excel_config.EXCEL_SHEET_PRICES, excel_config.EXCEL_SHEET_TICKERS
 - File path → excel_config.EXCEL_PATH
 
 ## pyRofex API Configuration

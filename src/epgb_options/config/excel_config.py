@@ -21,8 +21,11 @@ load_dotenv()
 # Configuración de Excel - Las variables de entorno sobrescriben estos valores por defecto
 EXCEL_FILE = os.getenv('EXCEL_FILE', 'EPGB OC-DI - Python.xlsb')
 EXCEL_PATH = os.getenv('EXCEL_PATH', './')
-SHEET_HOMEBROKER = os.getenv('SHEET_HOMEBROKER', 'HomeBroker')
-SHEET_TICKERS = os.getenv('SHEET_TICKERS', 'Tickers')
+EXCEL_SHEET_PRICES = os.getenv('EXCEL_SHEET_PRICES', 'HomeBroker')
+EXCEL_SHEET_TICKERS = os.getenv('EXCEL_SHEET_TICKERS', 'Tickers')
+
+# Intervalo de actualización de Excel en segundos
+EXCEL_UPDATE_INTERVAL = float(os.getenv('EXCEL_UPDATE_INTERVAL', '3.0'))
 
 
 def validate_excel_config():
@@ -42,12 +45,23 @@ def validate_excel_config():
         errors.append(f"Archivo de Excel no encontrado: {excel_file_path}")
     
     # Verificar que los nombres de las hojas no estén vacíos
-    if not SHEET_HOMEBROKER.strip():
-        errors.append("SHEET_HOMEBROKER no puede estar vacío")
+    if not EXCEL_SHEET_PRICES.strip():
+        errors.append("EXCEL_SHEET_PRICES no puede estar vacío")
         
-    if not SHEET_TICKERS.strip():
-        errors.append("SHEET_TICKERS no puede estar vacío")
+    if not EXCEL_SHEET_TICKERS.strip():
+        errors.append("EXCEL_SHEET_TICKERS no puede estar vacío")
     
+    # Verificar que EXCEL_UPDATE_INTERVAL sea un número positivo dentro de un rango razonable
+    try:
+        if EXCEL_UPDATE_INTERVAL <= 0:
+            errors.append(f"EXCEL_UPDATE_INTERVAL debe ser un número positivo, obtenido: {EXCEL_UPDATE_INTERVAL}")
+        elif EXCEL_UPDATE_INTERVAL < 0.1:
+            errors.append(f"EXCEL_UPDATE_INTERVAL demasiado pequeño (mínimo: 0.1 segundos), obtenido: {EXCEL_UPDATE_INTERVAL}")
+        elif EXCEL_UPDATE_INTERVAL > 60:
+            errors.append(f"EXCEL_UPDATE_INTERVAL demasiado grande (máximo: 60 segundos), obtenido: {EXCEL_UPDATE_INTERVAL}")
+    except (TypeError, ValueError) as e:
+        errors.append(f"EXCEL_UPDATE_INTERVAL debe ser un número válido: {e}")
+
     return errors
 
 

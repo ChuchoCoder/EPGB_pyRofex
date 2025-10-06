@@ -103,10 +103,10 @@ if os.path.exists(excel_file):
         
         # Test required sheets
         try:
-            shtHomeBroker = wb.sheets('HomeBroker')
-            log_test_result("HomeBroker sheet access", True, "Sheet accessible")
+            shtPrices = wb.sheets('HomeBroker')
+            log_test_result("Prices sheet access", True, "Sheet accessible")
         except Exception as sheet_error:
-            log_test_result("HomeBroker sheet access", False, f"Sheet error: {sheet_error}")
+            log_test_result("Prices sheet access", False, f"Sheet error: {sheet_error}")
         
         try:
             shtTickers = wb.sheets('Tickers') 

@@ -136,16 +136,16 @@ class SheetOperations:
             self.update_stats['errors'] += 1
             return False
     
-    def update_market_data_to_homebroker_sheet(self, df: pd.DataFrame, 
-                                               homebroker_sheet_name: str,
-                                               cauciones_df: pd.DataFrame = None) -> bool:
+    def update_market_data_to_prices_sheet(self, df: pd.DataFrame, 
+                                           prices_sheet_name: str,
+                                           cauciones_df: pd.DataFrame = None) -> bool:
         """
-        Actualizar datos de mercado en la hoja HomeBroker con formato específico.
+        Actualizar datos de mercado en la hoja Prices con formato específico.
         Utiliza actualización de rango masiva para máxima performance.
         
         Args:
             df: DataFrame con datos de mercado (excluyendo cauciones)
-            homebroker_sheet_name: Nombre de la hoja HomeBroker
+            prices_sheet_name: Nombre de la hoja Prices
             cauciones_df: DataFrame opcional con datos de cauciones (actualiza solo tabla derecha)
             
         Returns:
@@ -156,7 +156,7 @@ class SheetOperations:
                 logger.warning("No hay datos de mercado para actualizar")
                 return True
             
-            logger.debug(f"Actualizando datos de mercado en {homebroker_sheet_name}")
+            logger.debug(f"Actualizando datos de mercado en {prices_sheet_name}")
             
             # DEBUG: Log DataFrame state for first few updates
             if self.update_stats['updates_performed'] < 2:
@@ -165,16 +165,16 @@ class SheetOperations:
                 for sym in sample_symbols:
                     logger.debug(f"  {sym}: bid={df.loc[sym, 'bid']}, ask={df.loc[sym, 'ask']}, last={df.loc[sym, 'last']}")
             
-            # Get HomeBroker sheet
-            homebroker_sheet = self.workbook.sheets(homebroker_sheet_name)
+            # Get Prices sheet
+            prices_sheet = self.workbook.sheets(prices_sheet_name)
             
             # Build symbol-to-row mapping ONCE (cache for performance)
             if not hasattr(self, '_symbol_row_cache') or self.update_stats['updates_performed'] == 0:
                 # Ensure headers exist in row 1
-                self._ensure_headers_exist(homebroker_sheet)
+                self._ensure_headers_exist(prices_sheet)
                 
                 # Read existing symbols from column A (skip header row)
-                symbols_range = homebroker_sheet.range('A2:A1000')  # Read up to 1000 rows
+                symbols_range = prices_sheet.range('A2:A1000')  # Read up to 1000 rows
                 symbols = symbols_range.value
                 
                 # Handle case where only one symbol exists (xlwings returns single value instead of list)
@@ -214,15 +214,15 @@ class SheetOperations:
                 # If duplicates found, clean them up
                 if duplicate_rows:
                     logger.warning(f"Encontradas {len(duplicate_rows)} símbolos duplicados en la hoja de Excel")
-                    self._remove_duplicate_rows(homebroker_sheet, duplicate_rows)
+                    self._remove_duplicate_rows(prices_sheet, duplicate_rows)
                     logger.info(f"✅ Eliminadas {len(duplicate_rows)} filas duplicadas de Excel")
             
             # Always check for missing symbols (not just on first call)
             # This ensures options (or any new symbols) added later are also populated
             missing_symbols = [sym for sym in df.index if sym not in self._symbol_row_cache]
             if missing_symbols:
-                logger.info(f"Auto-poblando {len(missing_symbols)} símbolos nuevos en la hoja HomeBroker...")
-                self._add_symbols_to_sheet(homebroker_sheet, missing_symbols)
+                logger.info(f"Auto-poblando {len(missing_symbols)} símbolos nuevos en la hoja Prices...")
+                self._add_symbols_to_sheet(prices_sheet, missing_symbols)
                 logger.info(f"✅ Agregados {len(missing_symbols)} símbolos nuevos a Excel")
             
             # BULK UPDATE: Build 2D array for all data at once
@@ -261,25 +261,25 @@ class SheetOperations:
                 
                 # Single bulk write: Write entire range B{min}:O{max} at once
                 range_address = f'B{min_row}:O{max_row}'
-                homebroker_sheet.range(range_address).value = bulk_data
+                prices_sheet.range(range_address).value = bulk_data
                 
                 logger.info(f"✅ Actualización masiva de {len(updates_by_row)} instrumentos en el rango {range_address}")
             
             # Update cauciones table on the right side (columns R-U) using separate DataFrame
             if cauciones_df is not None and not cauciones_df.empty:
-                self._update_cauciones_table(homebroker_sheet, cauciones_df)
+                self._update_cauciones_table(prices_sheet, cauciones_df)
             
             self.update_stats['updates_performed'] += 1
             return True
             
         except Exception as e:
-            logger.error(f"Error al actualizar datos de mercado en la hoja HomeBroker: {e}")
+            logger.error(f"Error al actualizar datos de mercado en la hoja Prices: {e}")
             self.update_stats['errors'] += 1
             return False
     
     def _ensure_headers_exist(self, sheet: xw.Sheet):
         """
-        Asegurar que la hoja HomeBroker tenga los encabezados apropiados en la fila 1.
+        Asegurar que la hoja Prices tenga los encabezados apropiados en la fila 1.
         
         Args:
             sheet: Objeto Sheet de xlwings
@@ -297,7 +297,7 @@ class SheetOperations:
             
             # If headers don't match, write them
             if not header_row or header_row[0] != 'symbol':
-                logger.info("Creando encabezados en la hoja HomeBroker...")
+                logger.info("Creando encabezados en la hoja Prices...")
                 sheet.range('A1:O1').value = expected_headers
                 # Optional: Format headers (bold)
                 sheet.range('A1:O1').font.bold = True
@@ -337,7 +337,7 @@ class SheetOperations:
     
     def _add_symbols_to_sheet(self, sheet: xw.Sheet, symbols: list):
         """
-        Agregar nuevos símbolos a la hoja HomeBroker.
+        Agregar nuevos símbolos a la hoja Prices.
         
         Args:
             sheet: Objeto Sheet de xlwings
@@ -393,7 +393,7 @@ class SheetOperations:
     
     def _update_cauciones_table(self, sheet: xw.Sheet, df: pd.DataFrame):
         """
-        Actualizar la tabla de cauciones en el lado derecho de la hoja HomeBroker.
+        Actualizar la tabla de cauciones en el lado derecho de la hoja Prices.
         
         La tabla tiene Plazo (Período) en la columna R comenzando desde la fila 2:
         - Fila 2: "1 día" -> MERV - XMEV - PESOS - 1D (si existe)

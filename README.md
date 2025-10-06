@@ -64,6 +64,9 @@ copy .env.example .env
 PYROFEX_USER=tu_usuario
 PYROFEX_PASSWORD=tu_contraseña
 PYROFEX_ACCOUNT=tu_cuenta
+
+# Opcional: Configura el intervalo de actualización de Excel (en segundos, por defecto: 3.0)
+EXCEL_UPDATE_INTERVAL=3.0
 ```
 
 > **Importante:** Nunca compartas ni subas tu archivo `.env` con credenciales reales.
