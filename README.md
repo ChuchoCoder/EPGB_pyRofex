@@ -1,16 +1,17 @@
 # EPGB_pyRofex - Datos de Mercado en Tiempo Real
 
-Aplicación Python para obtener datos de mercado en tiempo real y gestionar opciones desde tu planilla de Excel.
+Aplicación Python para obtener datos de mercado en tiempo real y gestionar opciones desde tu planilla de Excel. 
+
+Es una aplicación análoga a [EPGB_HomeBroker](https://github.com/juanmarti81/EPGB_HomeBroker) utilizando la librería de [pyRofex](https://github.com/matbarofex/pyRofex).
 
 ## 📊 ¿Qué hace esta aplicación?
 
 EPGB_pyRofex te permite:
 
-- Obtener datos de mercado en tiempo real de opciones usando la API de Matba Rofex
+- Obtener datos de mercado en tiempo real de opciones usando la API de Primary (Matriz) [https://apihub.primary.com.ar](https://apihub.primary.com.ar/#apis)
 - Integración directa con Excel para visualizar y analizar los datos
 - Actualización automática de precios, volúmenes y otros datos de mercado
-- Gestión de símbolos de opciones desde tu planilla de Excel
-- Caché inteligente de instrumentos para mejor rendimiento
+- Gestión de instrumentos de opciones, acciones, bonos, ONs desde tu planilla de Excel
 
 ## 🚀 Inicio Rápido
 
@@ -89,7 +90,7 @@ python -m epgb_options.main
 
 ## 🧪 Validación del sistema
 
-Verificá que tu instalación esté correcta ejecutando:
+Si encuentras algún problema, verificá que tu instalación esté correcta ejecutando:
 
 ```bash
 # Validación completa del sistema (estructura, importaciones, entry points)
