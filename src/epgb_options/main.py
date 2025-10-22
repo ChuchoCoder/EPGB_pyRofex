@@ -13,9 +13,11 @@ import pandas as pd
 
 from .config import (EXCEL_FILE, EXCEL_PATH, EXCEL_SHEET_PRICES,
                      EXCEL_SHEET_TICKERS, EXCEL_UPDATE_INTERVAL,
-                     validate_excel_config, validate_pyRofex_config)
+                     TRADES_SYNC_ENABLED, validate_excel_config,
+                     validate_pyRofex_config)
 from .excel import SheetOperations, SymbolLoader, WorkbookManager
 from .market_data import DataProcessor, WebSocketHandler, pyRofexClient
+from .trades import ExecutionFetcher, TradesProcessor, TradesUpserter
 from .utils import get_logger, log_connection_event, setup_logging
 
 logger = get_logger(__name__)
@@ -32,6 +34,11 @@ class EPGBOptionsApp:
         self.workbook_manager = None
         self.symbol_loader = None
         self.sheet_operations = None
+        
+        # Trades components
+        self.execution_fetcher = None
+        self.trades_processor = None
+        self.trades_upserter = None
         
         # Data storage
         self.options_df = pd.DataFrame()
@@ -80,6 +87,18 @@ class EPGBOptionsApp:
             
             # Configurar cache de instrumentos en sheet operations para detección de opciones
             self.sheet_operations.set_instrument_cache(self.api_client.instrument_cache)
+            
+            # Inicializar componentes de Trades si está habilitado
+            logger.debug(f"TRADES_SYNC_ENABLED = {TRADES_SYNC_ENABLED}")
+            if TRADES_SYNC_ENABLED:
+                logger.info("Trades sync está habilitado, inicializando componentes...")
+                try:
+                    if not self._initialize_trades_components():
+                        logger.warning("⚠️  No se pudieron inicializar componentes de Trades, continuando sin sincronización de trades")
+                except Exception as e:
+                    logger.error(f"❌ Error al inicializar Trades: {e}", exc_info=True)
+            else:
+                logger.info("Trades sync deshabilitado (TRADES_SYNC_ENABLED=False)")
             
             logger.info("✅ Inicialización de la aplicación completada exitosamente")
             return True
@@ -333,6 +352,78 @@ class EPGBOptionsApp:
             
         except Exception as e:
             logger.error(f"Error al inicializar componentes de datos de mercado: {e}")
+            return False
+    
+    def _initialize_trades_components(self) -> bool:
+        """
+        Inicializar componentes de trades para sincronización automática de ejecuciones.
+        
+        Returns:
+            bool: True si la inicialización fue exitosa, False en caso contrario
+        """
+        try:
+            logger.info("Inicializando componentes de Trades...")
+            
+            # Initialize trades processor
+            self.trades_processor = TradesProcessor()
+            
+            # Initialize trades upserter with workbook
+            if not self.workbook_manager or not self.workbook_manager.workbook:
+                logger.error("Workbook manager no disponible para trades upserter")
+                return False
+            
+            self.trades_upserter = TradesUpserter(self.workbook_manager.workbook)
+            
+            # Initialize execution fetcher
+            self.execution_fetcher = ExecutionFetcher(self.api_client)
+            
+            # STARTUP SYNC: Fetch all existing filled orders and populate Trades sheet
+            logger.info("🔄 Sincronizando órdenes ejecutadas existentes desde la API...")
+            filled_orders = self.execution_fetcher.fetch_filled_orders_at_startup()
+            
+            if filled_orders:
+                logger.info(f"Procesando {len(filled_orders)} órdenes ejecutadas para upsert inicial...")
+                # Process executions
+                df = self.trades_processor.process_executions(filled_orders)
+                
+                if not df.empty:
+                    # Upsert to Excel
+                    stats = self.trades_upserter.upsert_executions(df)
+                    logger.info(f"✅ Sincronización inicial completa: {stats}")
+                else:
+                    logger.warning("No se pudieron procesar órdenes ejecutadas en DataFrame")
+            else:
+                logger.info("No hay órdenes ejecutadas para sincronizar al inicio")
+            
+            # Define execution callback for real-time updates
+            def on_execution(execution):
+                """Callback for new executions from WebSocket."""
+                try:
+                    # Process execution
+                    df = self.trades_processor.process_executions([execution])
+                    if not df.empty:
+                        # Upsert to Excel
+                        stats = self.trades_upserter.upsert_executions(df)
+                        logger.info(f"Execution upserted: {stats}")
+                except Exception as e:
+                    logger.error(f"Error processing execution callback: {e}", exc_info=True)
+            
+            # Subscribe to order reports with callback
+            self.api_client.set_order_report_handler(
+                lambda msg: self.execution_fetcher._parse_order_report(msg) and on_execution(
+                    self.execution_fetcher._parse_order_report(msg)
+                )
+            )
+            
+            if not self.api_client.subscribe_order_reports():
+                logger.error("Failed to subscribe to order reports")
+                return False
+            
+            logger.info("✅ Componentes de Trades inicializados y suscritos correctamente")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al inicializar componentes de Trades: {e}", exc_info=True)
             return False
     
     def _on_data_update(self, symbol: str, message: Dict[str, Any]):

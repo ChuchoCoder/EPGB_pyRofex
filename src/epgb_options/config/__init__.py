@@ -8,7 +8,10 @@ soporte para variables de entorno usando python-dotenv.
 # Import all configuration variables and functions
 try:
     from .excel_config import (EXCEL_FILE, EXCEL_PATH, EXCEL_SHEET_PRICES,
-                               EXCEL_SHEET_TICKERS, EXCEL_UPDATE_INTERVAL,
+                               EXCEL_SHEET_TICKERS, EXCEL_SHEET_TRADES,
+                               EXCEL_UPDATE_INTERVAL, TRADES_BATCH_SIZE,
+                               TRADES_COLUMNS, TRADES_SYNC_ENABLED,
+                               TRADES_SYNC_INTERVAL_SECONDS,
                                validate_excel_config)
     from .pyrofex_config import (ACCOUNT, API_URL, ENVIRONMENT, PASSWORD, USER,
                                  WS_URL, validate_pyRofex_config)
@@ -17,6 +20,10 @@ try:
         # Excel configuration
         'EXCEL_FILE', 'EXCEL_PATH', 'EXCEL_SHEET_PRICES', 'EXCEL_SHEET_TICKERS',
         'EXCEL_UPDATE_INTERVAL', 'validate_excel_config',
+        
+        # Trades configuration
+        'EXCEL_SHEET_TRADES', 'TRADES_BATCH_SIZE', 'TRADES_SYNC_ENABLED',
+        'TRADES_SYNC_INTERVAL_SECONDS', 'TRADES_COLUMNS',
         
         # pyRofex configuration  
         'ENVIRONMENT', 'API_URL', 'WS_URL', 'USER', 'PASSWORD', 'ACCOUNT',

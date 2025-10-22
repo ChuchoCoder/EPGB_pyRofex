@@ -279,6 +279,137 @@ class pyRofexClient:
         else:
             logger.warning("pyRofex no tiene set_websocket_exception_handler; manejador de excepciones no configurado")
     
+    def subscribe_order_reports(self):
+        """
+        Subscribe to order reports via WebSocket.
+        Provides real-time updates for order status changes and executions.
+        """
+        if not self.is_initialized:
+            raise RuntimeError("Cliente no inicializado. Llamá a initialize() primero.")
+        
+        try:
+            pyRofex.order_report_subscription()
+            logger.info("Suscripto a reportes de órdenes")
+            return True
+        except Exception as e:
+            logger.error(f"Fallo al suscribirse a reportes de órdenes: {e}")
+            return False
+    
+    def set_order_report_handler(self, handler):
+        """
+        Register handler for order report messages.
+        
+        Args:
+            handler: Callable that receives order report messages
+        """
+        if not callable(handler):
+            raise ValueError("El manejador debe ser invocable")
+        
+        if hasattr(pyRofex, 'add_websocket_order_report_handler'):
+            pyRofex.add_websocket_order_report_handler(handler)
+            logger.info("Manejador de reportes de órdenes registrado")
+        else:
+            logger.warning("pyRofex no tiene add_websocket_order_report_handler; manejador no configurado")
+    
+    def get_filled_orders(self):
+        """
+        Fetch all filled/partially filled orders via REST API.
+        
+        Calls GET /rest/order/filleds endpoint.
+        
+        Returns:
+            dict: Response containing filled orders, or None on error
+                {
+                    'status': 'OK',
+                    'orders': [
+                        {
+                            'orderId': str,
+                            'clOrdId': str,
+                            'execId': str,
+                            'accountId': {'id': str},
+                            'instrumentId': {'marketId': str, 'symbol': str},
+                            'price': float,
+                            'orderQty': int,
+                            'ordType': str,
+                            'side': str,
+                            'timeInForce': str,
+                            'transactTime': str,
+                            'avgPx': float,
+                            'lastPx': float,
+                            'lastQty': int,
+                            'cumQty': int,
+                            'leavesQty': int,
+                            'status': str,
+                            'text': str
+                        },
+                        ...
+                    ]
+                }
+        """
+        if not self.is_initialized:
+            raise RuntimeError("Cliente no inicializado. Llamá a initialize() primero.")
+        
+        try:
+            # pyRofex provides get_order_status for individual orders
+            # For filled orders, we need to use the REST endpoint directly
+            # The pyRofex library doesn't have a direct method for /rest/order/filleds
+            # So we'll use get_all_orders which should return all orders
+            
+            logger.info(f"Fetching filled orders for account {ACCOUNT}...")
+            
+            # Try using pyRofex's get_all_orders if available
+            if hasattr(pyRofex, 'get_all_orders'):
+                response = pyRofex.get_all_orders(account_id=ACCOUNT)
+            else:
+                # pyRofex doesn't have get_all_orders, use custom HTTP request
+                logger.info("Using custom HTTP request for filled orders endpoint")
+                import requests
+
+                # Access the auth token from pyRofex's environment config
+                try:
+                    from pyRofex.components.enums import Environment
+                    from pyRofex.components.globals import environment_config
+                    
+                    env = getattr(Environment, ENVIRONMENT)
+                    auth_token = environment_config.get(env, {}).get('token')
+                    
+                    if not auth_token:
+                        logger.error("Cannot fetch filled orders: No auth token in pyRofex environment config")
+                        return None
+                    
+                    # Build request
+                    headers = {
+                        'X-Auth-Token': auth_token
+                    }
+                    url = f"{API_URL}rest/order/filleds"
+                    params = {'accountId': ACCOUNT}
+                    
+                    logger.debug(f"Calling {url} with accountId={ACCOUNT}")
+                    response = requests.get(url, headers=headers, params=params, timeout=10)
+                    response.raise_for_status()
+                    response = response.json()
+                    
+                except ImportError as ie:
+                    logger.error(f"Cannot import pyRofex internals: {ie}")
+                    return None
+                except requests.exceptions.RequestException as re:
+                    logger.error(f"HTTP request failed: {re}")
+                    return None
+            
+            # Validate response
+            if not response or response.get('status') != 'OK':
+                logger.warning(f"Filled orders request failed or returned non-OK status: {response}")
+                return None
+            
+            orders = response.get('orders', [])
+            logger.info(f"✅ Fetched {len(orders)} filled orders from API")
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error fetching filled orders: {e}", exc_info=True)
+            return None
+    
     def close_connection(self):
         """Cerrar la conexión de pyRofex."""
         if self.is_initialized:

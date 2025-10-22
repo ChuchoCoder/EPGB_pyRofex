@@ -27,6 +27,34 @@ EXCEL_SHEET_TICKERS = os.getenv('EXCEL_SHEET_TICKERS', 'Tickers')
 # Intervalo de actualización de Excel en segundos
 EXCEL_UPDATE_INTERVAL = float(os.getenv('EXCEL_UPDATE_INTERVAL', '3.0'))
 
+# Trades Sheet Configuration
+EXCEL_SHEET_TRADES = os.getenv('EXCEL_SHEET_TRADES', 'Trades')
+TRADES_HEADER_ROW = int(os.getenv('TRADES_HEADER_ROW', '1'))
+TRADES_BATCH_SIZE = int(os.getenv('TRADES_BATCH_SIZE', '500'))
+TRADES_SYNC_ENABLED = os.getenv('TRADES_SYNC_ENABLED', 'true').lower() == 'true'
+TRADES_SYNC_INTERVAL_SECONDS = int(os.getenv('TRADES_SYNC_INTERVAL_SECONDS', '300'))  # 5 min
+
+# Column mapping (Excel column letters)
+TRADES_COLUMNS = {
+    'ExecutionID': 'A',
+    'OrderID': 'B',
+    'Account': 'C',
+    'Symbol': 'D',
+    'Side': 'E',
+    'Quantity': 'F',
+    'Price': 'G',
+    'FilledQty': 'H',
+    'TimestampUTC': 'I',
+    'Status': 'J',
+    'ExecutionType': 'K',
+    'Source': 'L',
+    'PreviousFilledQty': 'M',
+    'PreviousTimestampUTC': 'N',
+    'Superseded': 'O',
+    'CancelReason': 'P',
+    'UpdateCount': 'Q',
+}
+
 
 def validate_excel_config():
     """
@@ -62,6 +90,33 @@ def validate_excel_config():
     except (TypeError, ValueError) as e:
         errors.append(f"EXCEL_UPDATE_INTERVAL debe ser un número válido: {e}")
 
+    # Add trades validation
+    errors.extend(validate_trades_config())
+
+    return errors
+
+
+def validate_trades_config():
+    """
+    Validate trades-specific configuration.
+    Returns list of errors, empty list if all valid.
+    """
+    errors = []
+    
+    if not EXCEL_SHEET_TRADES.strip():
+        errors.append("EXCEL_SHEET_TRADES cannot be empty")
+    
+    if TRADES_BATCH_SIZE < 1 or TRADES_BATCH_SIZE > 10000:
+        errors.append(f"TRADES_BATCH_SIZE must be 1-10000, got {TRADES_BATCH_SIZE}")
+    
+    if TRADES_SYNC_INTERVAL_SECONDS < 10:
+        errors.append(f"TRADES_SYNC_INTERVAL_SECONDS too low (min 10s), got {TRADES_SYNC_INTERVAL_SECONDS}")
+    
+    # Validate column uniqueness
+    col_values = list(TRADES_COLUMNS.values())
+    if len(col_values) != len(set(col_values)):
+        errors.append("Duplicate column mappings detected in TRADES_COLUMNS")
+    
     return errors
 
 
