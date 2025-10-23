@@ -278,4 +278,3 @@ class ExecutionFetcher:
             logger.warning(f"Using fallback ExecutionID: {execution['ExecutionID']}")
         
         return execution
-        return execution
