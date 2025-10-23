@@ -378,4 +378,3 @@ class TradesUpserter:
         sheet.range('A1').value = headers
         sheet.range(f'A1:{list(TRADES_COLUMNS.values())[-1]}1').font.bold = True
         logger.debug("Trades sheet headers created")
-        logger.debug("Trades sheet headers created")

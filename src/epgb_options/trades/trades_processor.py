@@ -120,4 +120,3 @@ class TradesProcessor:
             return False
         
         return True
-        return True
