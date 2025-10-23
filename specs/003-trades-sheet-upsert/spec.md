@@ -90,7 +90,6 @@ As an auditor, I want historical execution events preserved so I can trace the l
 - **FR-009**: The system MUST log summary results of each run (number of new rows added, rows updated, duplicates ignored, errors) to the application log accessible to operators.
 - **FR-010**: The system MUST handle and deduplicate identical events from the Broker API based on the stable unique execution key.
 - **FR-011**: Preservation model chosen: update the original partial row to final and add an audit marker on that row. When a partial execution later becomes final the routine MUST update the existing Trades sheet row to reflect final quantities/status and populate audit columns (PreviousFilledQty, PreviousTimestampUTC, Superseded, CancelReason) to retain sufficient historical context. A separate full-event audit sheet will not be created by default.
-- **FR-012**: When a partial execution is later canceled, the system MUST update the existing partial row to status = "Canceled", populate audit columns (for example: PreviousFilledQty, PreviousTimestamp, Superseded=true, CancelReason), and must NOT append an additional cancellation row by default.
 **FR-012**: When a partial execution is later canceled, the system MUST update the existing partial row to status = "Canceled", populate audit columns (PreviousFilledQty, PreviousTimestampUTC, Superseded, CancelReason), and must NOT append an additional cancellation row by default.
 
 ### Key Entities *(include if feature involves data)*
