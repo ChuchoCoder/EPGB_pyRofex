@@ -95,9 +95,7 @@ As an auditor, I want historical execution events preserved so I can trace the l
 ### Key Entities *(include if feature involves data)*
 
 - **Execution / Trade**: Represents a single execution event. Attributes: Execution ID, Order ID, Instrument, Side, Quantity, Price, Filled Quantity, Timestamp (UTC), Broker Account, Status, Execution Type, Source.
-- **Trades Sheet Configuration**: Represents workbook-level configuration: Sheet name, Header row index, Column mapping (field -> column letter/index), Upsert key definition (Execution ID + Order ID + Broker Account), Preserve-historical boolean.
 - **Trades Sheet Configuration**: Represents workbook-level configuration: Sheet name, Header row index, Column mapping (field -> column letter/index), Upsert key definition (Execution ID + Order ID + Broker Account) — fixed (not configurable), Preserve-historical boolean.
-
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
