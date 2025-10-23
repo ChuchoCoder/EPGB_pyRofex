@@ -13,7 +13,8 @@ import pandas as pd
 
 from .config import (EXCEL_FILE, EXCEL_PATH, EXCEL_SHEET_PRICES,
                      EXCEL_SHEET_TICKERS, EXCEL_UPDATE_INTERVAL,
-                     TRADES_SYNC_ENABLED, validate_excel_config,
+                     TRADES_REALTIME_ENABLED, TRADES_SYNC_ENABLED,
+                     TRADES_SYNC_INTERVAL_SECONDS, validate_excel_config,
                      validate_pyRofex_config)
 from .excel import SheetOperations, SymbolLoader, WorkbookManager
 from .market_data import DataProcessor, WebSocketHandler, pyRofexClient
@@ -39,6 +40,7 @@ class EPGBOptionsApp:
         self.execution_fetcher = None
         self.trades_processor = None
         self.trades_upserter = None
+        self.last_trades_sync_time = None
         
         # Data storage
         self.options_df = pd.DataFrame()
@@ -379,52 +381,86 @@ class EPGBOptionsApp:
             
             # STARTUP SYNC: Fetch all existing filled orders and populate Trades sheet
             logger.info("🔄 Sincronizando órdenes ejecutadas existentes desde la API...")
+            self._sync_filled_orders()
+            
+            # Set up real-time updates if enabled
+            if TRADES_REALTIME_ENABLED:
+                logger.info("⚡ Real-time trades updates ENABLED via WebSocket")
+                
+                # Define execution callback for real-time updates
+                def on_execution(execution):
+                    """Callback for new executions from WebSocket."""
+                    try:
+                        # Process execution
+                        df = self.trades_processor.process_executions([execution])
+                        if not df.empty:
+                            # Upsert to Excel
+                            stats = self.trades_upserter.upsert_executions(df)
+                            logger.info(f"⚡ Real-time execution upserted: {stats}")
+                    except Exception as e:
+                        logger.error(f"Error processing execution callback: {e}", exc_info=True)
+                
+                # Subscribe to order reports with callback
+                self.api_client.set_order_report_handler(
+                    lambda msg: self.execution_fetcher._parse_order_report(msg) and on_execution(
+                        self.execution_fetcher._parse_order_report(msg)
+                    )
+                )
+                
+                if not self.api_client.subscribe_order_reports():
+                    logger.error("Failed to subscribe to order reports")
+                    return False
+            else:
+                logger.info(f"⏱️  Real-time trades updates DISABLED - using periodic sync every {TRADES_SYNC_INTERVAL_SECONDS}s")
+            
+            # Initialize sync timer
+            self.last_trades_sync_time = datetime.now()
+            
+            logger.info("✅ Componentes de Trades inicializados correctamente")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al inicializar componentes de Trades: {e}", exc_info=True)
+            return False
+    
+    def _sync_filled_orders(self):
+        """
+        Sync filled orders from broker API via REST.
+        Called at startup and periodically if real-time is disabled.
+        """
+        try:
             filled_orders = self.execution_fetcher.fetch_filled_orders_at_startup()
             
             if filled_orders:
-                logger.info(f"Procesando {len(filled_orders)} órdenes ejecutadas para upsert inicial...")
+                logger.info(f"Procesando {len(filled_orders)} órdenes ejecutadas para upsert...")
                 # Process executions
                 df = self.trades_processor.process_executions(filled_orders)
                 
                 if not df.empty:
                     # Upsert to Excel
                     stats = self.trades_upserter.upsert_executions(df)
-                    logger.info(f"✅ Sincronización inicial completa: {stats}")
+                    logger.info(f"✅ Sincronización completa: {stats}")
                 else:
                     logger.warning("No se pudieron procesar órdenes ejecutadas en DataFrame")
             else:
-                logger.info("No hay órdenes ejecutadas para sincronizar al inicio")
-            
-            # Define execution callback for real-time updates
-            def on_execution(execution):
-                """Callback for new executions from WebSocket."""
-                try:
-                    # Process execution
-                    df = self.trades_processor.process_executions([execution])
-                    if not df.empty:
-                        # Upsert to Excel
-                        stats = self.trades_upserter.upsert_executions(df)
-                        logger.info(f"Execution upserted: {stats}")
-                except Exception as e:
-                    logger.error(f"Error processing execution callback: {e}", exc_info=True)
-            
-            # Subscribe to order reports with callback
-            self.api_client.set_order_report_handler(
-                lambda msg: self.execution_fetcher._parse_order_report(msg) and on_execution(
-                    self.execution_fetcher._parse_order_report(msg)
-                )
-            )
-            
-            if not self.api_client.subscribe_order_reports():
-                logger.error("Failed to subscribe to order reports")
-                return False
-            
-            logger.info("✅ Componentes de Trades inicializados y suscritos correctamente")
-            return True
-            
+                logger.info("No hay órdenes ejecutadas para sincronizar")
         except Exception as e:
-            logger.error(f"Error al inicializar componentes de Trades: {e}", exc_info=True)
-            return False
+            logger.error(f"Error en sincronización de órdenes: {e}", exc_info=True)
+    
+    def _check_and_sync_trades(self):
+        """
+        Check if it's time to sync trades and trigger sync if needed.
+        Only used when real-time updates are disabled.
+        """
+        if not self.last_trades_sync_time or not self.execution_fetcher:
+            return
+        
+        elapsed = (datetime.now() - self.last_trades_sync_time).total_seconds()
+        
+        if elapsed >= TRADES_SYNC_INTERVAL_SECONDS:
+            logger.info(f"⏱️  Periodic trades sync triggered ({elapsed:.0f}s elapsed)")
+            self._sync_filled_orders()
+            self.last_trades_sync_time = datetime.now()
     
     def _on_data_update(self, symbol: str, message: Dict[str, Any]):
         """
@@ -554,6 +590,10 @@ class EPGBOptionsApp:
                 while self.is_running:
                     # Actualizar Excel periódicamente
                     self.update_excel_with_current_data()
+                    
+                    # Periodic trades sync if real-time is disabled
+                    if TRADES_SYNC_ENABLED and not TRADES_REALTIME_ENABLED:
+                        self._check_and_sync_trades()
                     
                     # Dormir por el intervalo configurado
                     time.sleep(EXCEL_UPDATE_INTERVAL)

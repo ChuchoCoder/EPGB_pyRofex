@@ -70,24 +70,62 @@ class TradesUpserter:
     def _read_existing_trades(self) -> pd.DataFrame:
         """Read existing Trades sheet data (bulk read)."""
         try:
-            # Read entire table starting from row 2 (skip header)
-            data_range = self.sheet.range('A2').expand('table')
+            # Read header row first to determine actual columns in Excel
+            header_range = self.sheet.range('A1').expand('right')
+            header_value = header_range.value
             
-            # Check if sheet is empty
-            if data_range.value is None or (isinstance(data_range.value, list) and len(data_range.value) == 0):
-                # Empty sheet - return empty DataFrame with correct columns
+            # Handle single header case
+            if not isinstance(header_value, (list, tuple)):
+                existing_headers = [header_value] if header_value else []
+            else:
+                existing_headers = [h for h in header_value if h is not None]
+            
+            # Check if sheet has no headers or is empty
+            if not existing_headers:
+                empty_df = pd.DataFrame(columns=list(TRADES_COLUMNS.keys()))
+                logger.debug("Trades sheet has no headers, starting fresh")
+                return empty_df
+            
+            # Determine the last column letter based on existing headers
+            num_existing_cols = len(existing_headers)
+            existing_col_letters = list(TRADES_COLUMNS.values())[:num_existing_cols]
+            last_existing_col = existing_col_letters[-1] if existing_col_letters else 'A'
+            
+            # Read data range (from A2 to last existing column)
+            # Use expand('down') to handle blanks properly
+            first_data_cell = self.sheet.range('A2')
+            if first_data_cell.value is None:
+                # No data rows
                 empty_df = pd.DataFrame(columns=list(TRADES_COLUMNS.keys()))
                 logger.debug("Trades sheet is empty, starting fresh")
                 return empty_df
             
-            # Convert to DataFrame
+            # Read the data range with specific columns
+            data_range = self.sheet.range(f'A2:{last_existing_col}2').expand('down')
             raw_data = data_range.value
+            
+            # Check if data is empty
+            if raw_data is None or (isinstance(raw_data, list) and len(raw_data) == 0):
+                empty_df = pd.DataFrame(columns=list(TRADES_COLUMNS.keys()))
+                logger.debug("Trades sheet is empty, starting fresh")
+                return empty_df
             
             # Handle single row case (xlwings returns list, not list of lists)
             if not isinstance(raw_data[0], (list, tuple)):
                 raw_data = [raw_data]
             
-            df = pd.DataFrame(raw_data, columns=list(TRADES_COLUMNS.keys()))
+            # Create DataFrame with existing headers
+            df = pd.DataFrame(raw_data, columns=existing_headers)
+            
+            # Add missing columns with None values if the sheet has fewer columns than expected
+            expected_columns = list(TRADES_COLUMNS.keys())
+            for col in expected_columns:
+                if col not in df.columns:
+                    df[col] = None
+                    logger.debug(f"Added missing column '{col}' with None values")
+            
+            # Ensure column order matches expected order
+            df = df[expected_columns]
             
             # Convert data types
             if not df.empty:
@@ -149,7 +187,8 @@ class TradesUpserter:
             left_index=True,
             right_index=True,
             indicator=True,
-            suffixes=('_old', '_new')
+            suffixes=('_old', '_new'),
+            sort=False  # Suppress unorderable values warning
         )
         
         return merged

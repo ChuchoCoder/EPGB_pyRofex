@@ -68,9 +68,32 @@ PYROFEX_ACCOUNT=tu_cuenta
 
 # Opcional: Configura el intervalo de actualización de Excel (en segundos, por defecto: 3.0)
 EXCEL_UPDATE_INTERVAL=3.0
+
+# Trades Sheet Configuration (opcional)
+TRADES_SYNC_ENABLED=true                # Habilitar sincronización de trades (por defecto: true)
+TRADES_REALTIME_ENABLED=false           # Habilitar actualizaciones en tiempo real vía WebSocket (por defecto: false)
+TRADES_SYNC_INTERVAL_SECONDS=300        # Intervalo de sincronización periódica en segundos (por defecto: 300 = 5 min)
+EXCEL_SHEET_TRADES=Trades               # Nombre de la hoja de trades (por defecto: Trades)
+TRADES_BATCH_SIZE=500                   # Tamaño de lote para procesamiento masivo (por defecto: 500)
 ```
 
 > **Importante:** Nunca compartas ni subas tu archivo `.env` con credenciales reales.
+
+#### Configuración de Trades
+
+La aplicación puede sincronizar operaciones ejecutadas (trades) desde el broker a una hoja de Excel dedicada. Hay dos modos de operación:
+
+- **Modo Periódico (por defecto)**: `TRADES_REALTIME_ENABLED=false`
+  - Sincroniza trades cada `TRADES_SYNC_INTERVAL_SECONDS` segundos (por defecto: 300s = 5 min)
+  - Usa llamadas REST a la API del broker
+  - Menor carga en tiempo real, pero mayor latencia
+  
+- **Modo Tiempo Real**: `TRADES_REALTIME_ENABLED=true`
+  - Sincroniza trades inmediatamente vía WebSocket cuando ocurren
+  - Actualización instantánea de operaciones ejecutadas
+  - Mayor carga en tiempo de ejecución, pero latencia mínima
+
+Para deshabilitar completamente la sincronización de trades, configurá: `TRADES_SYNC_ENABLED=false`
 
 3. (Opcional) Generá módulos de configuración faltantes:
 

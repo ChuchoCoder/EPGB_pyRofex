@@ -32,7 +32,8 @@ EXCEL_SHEET_TRADES = os.getenv('EXCEL_SHEET_TRADES', 'Trades')
 TRADES_HEADER_ROW = int(os.getenv('TRADES_HEADER_ROW', '1'))
 TRADES_BATCH_SIZE = int(os.getenv('TRADES_BATCH_SIZE', '500'))
 TRADES_SYNC_ENABLED = os.getenv('TRADES_SYNC_ENABLED', 'true').lower() == 'true'
-TRADES_SYNC_INTERVAL_SECONDS = int(os.getenv('TRADES_SYNC_INTERVAL_SECONDS', '300'))  # 5 min
+TRADES_REALTIME_ENABLED = os.getenv('TRADES_REALTIME_ENABLED', 'false').lower() == 'true'  # WebSocket real-time updates
+TRADES_SYNC_INTERVAL_SECONDS = int(os.getenv('TRADES_SYNC_INTERVAL_SECONDS', '20'))  # 20 seconds periodic REST sync
 
 # Column mapping (Excel column letters)
 TRADES_COLUMNS = {
