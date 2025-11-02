@@ -126,7 +126,7 @@ La hoja `Tickers` del archivo **EPGB OC-DI - Python.xlsb** define qué instrumen
 #### Spot vs 24hs
 Para acciones/bonos/etc. se distinguen dos variantes:
 - `AL30 - 24hs` (24 horas)
-- `AL30 - spot` (contado inmediatamente)
+- `AL30 - spot` (contado inmediato)
 
 Ambas variantes pueden convivir. El sufijo exacto determina la transformación y suscripción.
 

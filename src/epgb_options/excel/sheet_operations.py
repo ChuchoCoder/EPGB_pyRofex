@@ -14,9 +14,12 @@ from ..utils.helpers import (clean_dataframe_for_excel,
                              clean_symbol_for_display, get_excel_safe_value,
                              restore_symbol_prefix)
 from ..utils.logging import get_logger
+from ..utils.progress_logger import ProgressLogger, ThrottledLogger
 from ..utils.validation import validate_pandas_dataframe
 
 logger = get_logger(__name__)
+# Throttled logger para evitar spam en logs repetitivos
+_throttled_logger = ThrottledLogger(logger, default_throttle_seconds=5.0)
 
 
 class SheetOperations:
@@ -37,6 +40,9 @@ class SheetOperations:
             'errors': 0,
             'last_update_time': None
         }
+        
+        # Progress logger para actualizaciones masivas
+        self._progress_logger = ProgressLogger(throttle_seconds=0.5)
     
     def set_instrument_cache(self, instrument_cache):
         """
@@ -127,7 +133,12 @@ class SheetOperations:
                                            index=include_index, 
                                            header=include_header).value = clean_df
             
-            logger.info(f"Actualizada {sheet_name} con {len(clean_df)} filas de datos")
+            # Use throttled logger to avoid spam for repeated calls
+            _throttled_logger.info(
+                f"📝 Actualizada {sheet_name} con {len(clean_df)} filas de datos",
+                key=f"update_df_{sheet_name}",
+                throttle_seconds=10.0
+            )
             self.update_stats['updates_performed'] += 1
             return True
             
@@ -209,7 +220,7 @@ class SheetOperations:
                         else:
                             self._symbol_row_cache[full_symbol] = idx + 2
                 
-                logger.info(f"Caché de filas de símbolos construido con {len(self._symbol_row_cache)} símbolos desde Excel")
+                logger.info(f"📋 Caché de filas construido: {len(self._symbol_row_cache)} símbolos desde Excel")
                 
                 # If duplicates found, clean them up
                 if duplicate_rows:
@@ -221,9 +232,12 @@ class SheetOperations:
             # This ensures options (or any new symbols) added later are also populated
             missing_symbols = [sym for sym in df.index if sym not in self._symbol_row_cache]
             if missing_symbols:
-                logger.info(f"Auto-poblando {len(missing_symbols)} símbolos nuevos en la hoja Prices...")
+                _throttled_logger.info(
+                    f"➕ Auto-poblando {len(missing_symbols)} símbolos nuevos en la hoja Prices...",
+                    key="add_symbols"
+                )
                 self._add_symbols_to_sheet(prices_sheet, missing_symbols)
-                logger.info(f"✅ Agregados {len(missing_symbols)} símbolos nuevos a Excel")
+                logger.debug(f"Agregados {len(missing_symbols)} símbolos nuevos a Excel")
             
             # BULK UPDATE: Build 2D array for all data at once
             # Columns: B=bid_size, C=bid, D=ask, E=ask_size, F=last, G=change, H=open, I=high, J=low, K=previous_close, L=turnover, M=volume, N=operations, O=datetime
@@ -263,7 +277,18 @@ class SheetOperations:
                 range_address = f'B{min_row}:O{max_row}'
                 prices_sheet.range(range_address).value = bulk_data
                 
-                logger.info(f"✅ Actualización masiva de {len(updates_by_row)} instrumentos en el rango {range_address}")
+                # Progress logger DISABLED - unified status line in main.py handles this
+                # Use progress logger instead of regular INFO log
+                # This updates the same line instead of creating new lines
+                # from datetime import datetime
+                # timestamp = datetime.now().strftime("%H:%M:%S")
+                # self._progress_logger.update(
+                #     f"📊 Excel [{timestamp}]: {len(updates_by_row)} inst. | Rango: {range_address} | "
+                #     f"Total: {self.update_stats['updates_performed'] + 1} acts."
+                # )
+                
+                # Log summary to file (DEBUG level)
+                logger.debug(f"Actualización masiva de {len(updates_by_row)} instrumentos en {range_address}")
             
             # Update cauciones table on the right side (columns R-U) using separate DataFrame
             if cauciones_df is not None and not cauciones_df.empty:
@@ -512,7 +537,8 @@ class SheetOperations:
                 range_address = f'S{min_row}:Y{max_row}'
                 sheet.range(range_address).value = bulk_data
                 
-                logger.debug(f"✅ Actualización masiva de {len(updates)} cauciones en el rango {range_address}")
+                # Use DEBUG for cauciones updates (less noisy)
+                logger.debug(f"Actualización masiva de {len(updates)} cauciones en el rango {range_address}")
             
         except Exception as e:
             logger.error(f"Error al actualizar la tabla de cauciones: {e}")
@@ -577,7 +603,8 @@ class SheetOperations:
             # Single batch write for entire row (B:O)
             sheet.range(f'B{row_index}:O{row_index}').value = row_values
             
-            logger.info(f"✅ Actualizado {symbol} en fila {row_index} - bid={data.get('bid')}, ask={data.get('ask')}, last={data.get('last')}")
+            # Use DEBUG level for individual row updates (too noisy for INFO)
+            logger.debug(f"Actualizado {symbol} en fila {row_index} - bid={data.get('bid')}, ask={data.get('ask')}, last={data.get('last')}")
             
         except Exception as e:
             logger.warning(f"Error al actualizar fila individual para {symbol}: {e}")
@@ -703,3 +730,11 @@ class SheetOperations:
             'errors': 0,
             'last_update_time': None
         }
+    
+    def finish_progress(self):
+        """
+        Finalizar progreso y mover a nueva línea.
+        
+        Útil para asegurar que el progreso no quede colgado en la misma línea.
+        """
+        self._progress_logger.finish()

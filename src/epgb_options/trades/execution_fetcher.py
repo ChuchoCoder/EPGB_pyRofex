@@ -108,19 +108,19 @@ class ExecutionFetcher:
             List of execution dicts ready for processing
         """
         try:
-            logger.info("Fetching filled orders at startup...")
+            logger.debug("Fetching filled orders at startup...")
             
             # Call API client to get filled orders
             response = self.api_client.get_filled_orders()
             
             if not response or response.get('status') != 'OK':
-                logger.warning("No filled orders retrieved or request failed")
+                logger.debug("No filled orders retrieved or request failed")
                 return []
             
             orders = response.get('orders', [])
             
             if not orders:
-                logger.info("No filled orders found")
+                logger.debug("No filled orders found")
                 return []
             
             # Parse each order into execution dict format
@@ -130,7 +130,7 @@ class ExecutionFetcher:
                 if execution:
                     executions.append(execution)
             
-            logger.info(f"✅ Parsed {len(executions)} filled orders at startup")
+            logger.debug(f"Parsed {len(executions)} filled orders at startup")
             return executions
             
         except Exception as e:

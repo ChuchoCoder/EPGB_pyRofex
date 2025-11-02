@@ -355,14 +355,14 @@ class pyRofexClient:
             # The pyRofex library doesn't have a direct method for /rest/order/filleds
             # So we'll use get_all_orders which should return all orders
             
-            logger.info(f"Fetching filled orders for account {ACCOUNT}...")
+            logger.debug(f"Fetching filled orders for account {ACCOUNT}...")
             
             # Try using pyRofex's get_all_orders if available
             if hasattr(pyRofex, 'get_all_orders'):
                 response = pyRofex.get_all_orders(account_id=ACCOUNT)
             else:
                 # pyRofex doesn't have get_all_orders, use custom HTTP request
-                logger.info("Using custom HTTP request for filled orders endpoint")
+                logger.debug("Using custom HTTP request for filled orders endpoint")
                 import requests
 
                 # Access the auth token from pyRofex's environment config
@@ -398,11 +398,11 @@ class pyRofexClient:
             
             # Validate response
             if not response or response.get('status') != 'OK':
-                logger.warning(f"Filled orders request failed or returned non-OK status: {response}")
+                logger.debug(f"Filled orders request failed or returned non-OK status: {response}")
                 return None
             
             orders = response.get('orders', [])
-            logger.info(f"✅ Fetched {len(orders)} filled orders from API")
+            logger.debug(f"Fetched {len(orders)} filled orders from API")
             
             return response
             

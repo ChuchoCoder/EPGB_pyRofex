@@ -13,6 +13,7 @@ import pandas as pd
 from ..utils.helpers import get_excel_safe_value
 from ..utils.logging import (get_logger, log_connection_event,
                              log_market_data_event)
+from ..utils.progress_logger import ProgressLogger, SummaryLogger
 from ..utils.validation import (safe_float_conversion, safe_int_conversion,
                                 validate_market_data)
 from .instrument_cache import InstrumentCache
@@ -49,6 +50,10 @@ class WebSocketHandler:
         
         # Callbacks
         self.on_data_update = None  # Callback para cuando los datos se actualizan
+        
+        # Progress and summary loggers
+        self._progress_logger = ProgressLogger(throttle_seconds=1.0)
+        self._summary_logger = SummaryLogger(logger, interval_seconds=30.0)
     
     def set_data_references(self, options_df: pd.DataFrame, everything_df: pd.DataFrame, cauciones_df: pd.DataFrame = None):
         """Configurar referencias a los DataFrames principales."""
@@ -100,8 +105,9 @@ class WebSocketHandler:
                 self.connection_stats['errors'] += 1
                 return
             
-            # Extract symbol
-            symbol = message.get('instrumentId', {}).get('symbol')
+            # Extract symbol (safe access with 'or {}' to handle None instrumentId)
+            instrument_id = message.get('instrumentId') or {}
+            symbol = instrument_id.get('symbol')
             if not symbol:
                 logger.warning("No hay símbolo en el mensaje de datos de mercado")
                 return
@@ -110,7 +116,25 @@ class WebSocketHandler:
             self._process_market_data(symbol, message)
             self.connection_stats['messages_processed'] += 1
             
-            log_market_data_event(symbol, "data_update")
+            # Update summary statistics
+            self._summary_logger.increment('messages_processed')
+            self._summary_logger.set_stat('last_symbol', symbol[:30])  # Truncate long symbols
+            
+            # Show progress - DISABLED: unified status line in main.py handles this
+            # timestamp = datetime.now().strftime("%H:%M:%S")
+            # self._progress_logger.update(
+            #     f"📡 WS [{timestamp}]: {self.connection_stats['messages_received']} msgs | "
+            #     f"{self.connection_stats['messages_processed']} OK | "
+            #     f"{self.connection_stats['errors']} err | "
+            #     f"Último: {symbol[:25]}"
+            # )
+            
+            # Show periodic summary - DISABLED: unified status line in main.py handles this
+            # self._summary_logger.show_summary("WebSocket Stats")
+            
+            # DEBUG level for individual message details (TEMPORARILY DISABLED due to caching issues)
+            # market_data = message.get('marketData') or {}
+            # logger.debug(f"Procesado {symbol}: last={market_data.get('LA', {}).get('price', 'N/A')}")
             
             # Notify callback if set
             if self.on_data_update:
@@ -126,7 +150,12 @@ class WebSocketHandler:
         """Procesar datos de mercado y actualizar el DataFrame correspondiente."""
         
         # Extract market data fields
-        market_data = message.get('marketData', {})
+        market_data = message.get('marketData')
+        
+        # Validate that marketData exists and is not None
+        if market_data is None:
+            logger.debug(f"Mensaje sin datos de mercado para {symbol} - omitiendo")
+            return
         
         # DEBUG: Log market data extraction for first symbol
         if self.connection_stats['messages_processed'] < 2:
@@ -208,6 +237,7 @@ class WebSocketHandler:
         else:
             self._update_securities_data(symbol, update_df)
 
+        # Use DEBUG for individual updates (too verbose for INFO)
         logger.debug(f"Actualizado {symbol}: last={data_row['last']}, bid={data_row['bid']}, ask={data_row['ask']}")
     
     def _is_options_symbol(self, symbol: str) -> bool:
@@ -304,21 +334,26 @@ class WebSocketHandler:
         """Manejar errores ocurridos durante el procesamiento de mensajes."""
         self.connection_stats['errors'] += 1
         
+        # Safe extraction of symbol for error context
+        instrument_id = message.get('instrumentId') or {} if isinstance(message, dict) else {}
+        symbol = instrument_id.get('symbol', 'unknown')
+        
         error_context = {
             'error': str(error),
             'message_type': type(message).__name__,
             'has_symbol': 'instrumentId' in message if isinstance(message, dict) else 'unknown',
-            'symbol': message.get('instrumentId', {}).get('symbol', 'unknown') if isinstance(message, dict) else 'unknown',
+            'symbol': symbol,
             'timestamp': datetime.now().isoformat()
         }
         logger.error(f"Error al procesar datos de mercado: {error}")
         logger.error(f"Contexto: Símbolo={error_context['symbol']}, Tipo={error_context['message_type']}")
-        logger.info("Continuando con el procesamiento de otros mensajes - error no crítico")
         
-        # Log detailed error for debugging
+        # Log detailed traceback at ERROR level (temporarily for debugging)
         if hasattr(error, '__traceback__'):
             import traceback
-            logger.debug(f"Detalles técnicos: {traceback.format_exc()}")
+            logger.error(f"TRACEBACK COMPLETO:\n{traceback.format_exc()}")
+        
+        logger.info("Continuando con el procesamiento de otros mensajes - error no crítico")
     
     def websocket_error_handler(self, error):
         """Manejar mensajes de error del WebSocket."""
@@ -414,3 +449,28 @@ class WebSocketHandler:
             'last_message_time': None,
             'connection_start': datetime.now()
         }
+        self._summary_logger.reset_all()
+    
+    def show_summary(self, force: bool = False):
+        """
+        Mostrar resumen de estadísticas de WebSocket.
+        
+        Args:
+            force: Si True, muestra resumen sin importar intervalo
+        """
+        # Update summary stats
+        self._summary_logger.set_stat('messages_received', self.connection_stats['messages_received'])
+        self._summary_logger.set_stat('messages_processed', self.connection_stats['messages_processed'])
+        self._summary_logger.set_stat('errors', self.connection_stats['errors'])
+        
+        if self.connection_stats['connection_start']:
+            uptime = (datetime.now() - self.connection_stats['connection_start']).total_seconds()
+            from ..utils.progress_logger import format_duration
+            self._summary_logger.set_stat('uptime', format_duration(uptime))
+        
+        # Show summary
+        self._summary_logger.show_summary("WebSocket Stats", force=force)
+    
+    def finish_progress(self):
+        """Finalizar progreso y mover a nueva línea."""
+        self._progress_logger.finish()

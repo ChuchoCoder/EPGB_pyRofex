@@ -20,6 +20,7 @@ from .excel import SheetOperations, SymbolLoader, WorkbookManager
 from .market_data import DataProcessor, WebSocketHandler, pyRofexClient
 from .trades import ExecutionFetcher, TradesProcessor, TradesUpserter
 from .utils import get_logger, log_connection_event, setup_logging
+from .utils.progress_logger import ProgressLogger, SummaryLogger, format_number
 
 logger = get_logger(__name__)
 
@@ -60,6 +61,18 @@ class EPGBOptionsApp:
             'updates_performed': 0,
             'updates_skipped': 0
         }
+        
+        # Orders/trades statistics
+        self.orders_stats = {
+            'total_filled': 0,
+            'last_sync_count': 0
+        }
+        
+        # Unified single-line status display
+        self._status_logger = ProgressLogger(throttle_seconds=0.5)
+        
+        # Summary logger for periodic stats (every 60s, less frequent)
+        self._summary_logger = SummaryLogger(logger, interval_seconds=60.0)
     
     def initialize(self) -> bool:
         """
@@ -298,7 +311,7 @@ class EPGBOptionsApp:
                 )
                 
                 if invalid_cauciones:
-                    logger.warning(f"⚠️  {len(invalid_cauciones)} cauciones inválidas encontradas en Excel:")
+                    logger.warning(f"{len(invalid_cauciones)} cauciones inválidas encontradas en Excel:")
                     for symbol in invalid_cauciones[:10]:
                         logger.warning(f"    - {symbol}")
                     if len(invalid_cauciones) > 10:
@@ -463,18 +476,25 @@ class EPGBOptionsApp:
             filled_orders = self.execution_fetcher.fetch_filled_orders_at_startup()
             
             if filled_orders:
-                logger.info(f"Procesando {len(filled_orders)} órdenes ejecutadas para upsert...")
+                order_count = len(filled_orders)
+                logger.debug(f"Procesando {order_count} órdenes ejecutadas para upsert...")
+                
+                # Update stats
+                self.orders_stats['last_sync_count'] = order_count
+                self.orders_stats['total_filled'] += order_count
+                
                 # Process executions
                 df = self.trades_processor.process_executions(filled_orders)
                 
                 if not df.empty:
                     # Upsert to Excel
                     stats = self.trades_upserter.upsert_executions(df)
-                    logger.info(f"✅ Sincronización completa: {stats}")
+                    logger.debug(f"Sincronización completa: {stats}")
                 else:
-                    logger.warning("No se pudieron procesar órdenes ejecutadas en DataFrame")
+                    logger.debug("No se pudieron procesar órdenes ejecutadas en DataFrame")
             else:
-                logger.info("No hay órdenes ejecutadas para sincronizar")
+                self.orders_stats['last_sync_count'] = 0
+                logger.debug("No hay órdenes ejecutadas para sincronizar")
         except Exception as e:
             logger.error(f"Error en sincronización de órdenes: {e}", exc_info=True)
     
@@ -489,14 +509,15 @@ class EPGBOptionsApp:
         elapsed = (datetime.now() - self.last_trades_sync_time).total_seconds()
         
         if elapsed >= TRADES_SYNC_INTERVAL_SECONDS:
-            logger.info(f"⏱️  Periodic trades sync triggered ({elapsed:.0f}s elapsed)")
+            # Sync quietly - status shown in unified line
+            logger.debug(f"Periodic trades sync triggered ({elapsed:.0f}s elapsed)")
             self._sync_filled_orders()
             self.last_trades_sync_time = datetime.now()
     
     def _check_market_data_timeout(self):
         """
         Check if market data has been received recently.
-        Logs a warning if no data has been received for 10+ seconds.
+        Timeout warnings are now shown in the unified status line (not as separate log entries).
         """
         if not self.websocket_handler:
             return
@@ -507,12 +528,10 @@ class EPGBOptionsApp:
         if last_message_time:
             elapsed = (datetime.now() - last_message_time).total_seconds()
             
-            # Warning if no data for 10+ seconds
-            if elapsed >= 10:
-                logger.warning(f"⚠️  No se han recibido datos de mercado en {elapsed:.0f} segundos")
-                logger.warning(f"   Mensajes procesados: {stats.get('messages_processed', 0)}")
-                logger.warning(f"   Errores: {stats.get('errors', 0)}")
-                logger.warning("   Posibles causas: Problemas de red, WebSocket desconectado, o mercado cerrado")
+            # Warning if no data for 10+ seconds - but DON'T log it here
+            # The unified status line in _update_unified_status() will show the timeout
+            # This prevents creating new log lines
+            pass
     
     def _on_data_update(self, symbol: str, message: Dict[str, Any]):
         """
@@ -547,17 +566,17 @@ class EPGBOptionsApp:
         
         # No market data received yet - skip update
         if self.last_market_data_time is None:
-            logger.info("⏸️  Sin datos de mercado recibidos aún - omitiendo actualización de Excel")
+            logger.debug("Sin datos de mercado recibidos aún - omitiendo actualización de Excel")
             return False
         
         # Check if we have new market data since last Excel update
         if self.last_market_data_time > self.last_excel_update_time:
             elapsed = (self.last_market_data_time - self.last_excel_update_time).total_seconds()
-            logger.info(f"✅ Nuevos datos de mercado disponibles (hace {elapsed:.1f}s) - actualizando Excel")
+            logger.debug(f"Nuevos datos de mercado disponibles (hace {elapsed:.1f}s) - actualizando Excel")
             return True
         else:
             elapsed = (datetime.now() - self.last_excel_update_time).total_seconds()
-            logger.info(f"⏭️  Sin nuevos datos de mercado (última actualización hace {elapsed:.1f}s) - omitiendo Excel")
+            logger.debug(f"Sin nuevos datos de mercado (última actualización hace {elapsed:.1f}s) - omitiendo Excel")
             return False
     
     def start_market_data_subscription(self) -> bool:
@@ -638,6 +657,42 @@ class EPGBOptionsApp:
             logger.error(f"Error al actualizar Excel: {e}")
             return False
     
+    def _update_unified_status(self):
+        """Actualizar línea única de estado con toda la información relevante."""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        # WebSocket stats
+        ws_stats = self.websocket_handler.get_connection_stats()
+        msgs = ws_stats['messages_received']
+        processed = ws_stats['messages_processed']
+        errors = ws_stats['errors']
+        
+        # Excel stats
+        cycle = self.excel_update_stats['total_cycles']
+        excel_updates = self.excel_update_stats['updates_performed']
+        
+        # Orders stats (if trades sync is enabled)
+        orders_str = ""
+        if TRADES_SYNC_ENABLED:
+            orders_count = self.orders_stats['total_filled']
+            orders_str = f" | 📝 {orders_count} orders"
+        
+        # Market data timeout warning
+        timeout_str = ""
+        if ws_stats['last_message_time']:
+            seconds_since_last = (datetime.now() - ws_stats['last_message_time']).total_seconds()
+            if seconds_since_last > 10:
+                timeout_str = f" 🟡 Sin datos {int(seconds_since_last)}s"
+        
+        # Build unified status line
+        status = (
+            f"[{timestamp}] 📊 Ciclo {cycle} | "
+            f"📡 WS: {processed}/{msgs} msgs ({errors} err) | "
+            f"📈 Excel: {excel_updates} acts.{orders_str}{timeout_str}"
+        )
+        
+        self._status_logger.update(status)
+    
     def run(self):
         """Ejecutar el bucle principal de la aplicación."""
         try:
@@ -672,7 +727,7 @@ class EPGBOptionsApp:
             # Esperar a que los datos de mercado iniciales se poblen (dar tiempo al WebSocket para recibir primer lote)
             logger.info("Esperando que los datos de mercado iniciales se pueblen...")
             time.sleep(2)
-            logger.info("Iniciando actualizaciones de Excel")
+            logger.info("✅ Iniciando bucle principal - todos los logs se mostrarán en UNA línea actualizable")
             
             # Bucle principal de la aplicación
             try:
@@ -692,20 +747,33 @@ class EPGBOptionsApp:
                         # Record the update time and increment counter
                         self.last_excel_update_time = datetime.now()
                         self.excel_update_stats['updates_performed'] += 1
+                        
+                        # Update summary logger
+                        self._summary_logger.increment('excel_updates')
                     else:
                         # Skip this update - no new data
                         self.excel_update_stats['updates_skipped'] += 1
+                        self._summary_logger.increment('excel_skipped')
                     
-                    # Log optimization summary every 10 cycles
-                    if cycle_num % 10 == 0:
-                        performed = self.excel_update_stats['updates_performed']
-                        skipped = self.excel_update_stats['updates_skipped']
-                        skip_rate = (skipped / cycle_num * 100) if cycle_num > 0 else 0
-                        logger.info(f"📊 Optimización Excel - Ciclo {cycle_num}: {performed} actualizaciones, {skipped} omitidas ({skip_rate:.1f}% ahorrado)")
+                    # Update unified status line (replaces all individual progress logs)
+                    self._update_unified_status()
                     
                     # Periodic trades sync if real-time is disabled
                     if TRADES_SYNC_ENABLED and not TRADES_REALTIME_ENABLED:
                         self._check_and_sync_trades()
+                    
+                    # Show full summary only occasionally (every 60 cycles)
+                    if cycle_num % 60 == 0:
+                        ws_stats = self.websocket_handler.get_connection_stats()
+                        performed = self.excel_update_stats['updates_performed']
+                        skipped = self.excel_update_stats['updates_skipped']
+                        skip_rate = (skipped / cycle_num * 100) if cycle_num > 0 else 0
+                        self._status_logger.finish()  # Move to new line for summary
+                        logger.info(
+                            f"📊 Resumen cada 60 ciclos: {performed} updates Excel | "
+                            f"{skipped} omitidas ({skip_rate:.1f}%) | "
+                            f"WS: {format_number(ws_stats['messages_received'])} msgs procesados"
+                        )
                     
                     # Dormir por el intervalo configurado
                     time.sleep(EXCEL_UPDATE_INTERVAL)
@@ -725,6 +793,23 @@ class EPGBOptionsApp:
             
             self.is_running = False
             
+            # Finish progress loggers before shutdown
+            if self.sheet_operations:
+                self.sheet_operations.finish_progress()
+            
+            if self.websocket_handler:
+                self.websocket_handler.finish_progress()
+            
+            # Show final summary
+            logger.info("\n" + "="*70)
+            logger.info("📊 RESUMEN FINAL DE EJECUCIÓN")
+            logger.info("="*70)
+            
+            self._summary_logger.show_summary("Estadísticas Finales", force=True)
+            
+            if self.websocket_handler:
+                self.websocket_handler.show_summary(force=True)
+            
             # Cerrar cliente API
             if self.api_client:
                 self.api_client.close_connection()
@@ -733,6 +818,7 @@ class EPGBOptionsApp:
             if self.workbook_manager:
                 self.workbook_manager.disconnect()
             
+            logger.info("="*70)
             logger.info("✅ Cierre de aplicación completado")
             
         except Exception as e:
