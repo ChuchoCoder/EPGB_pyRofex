@@ -682,7 +682,7 @@ class EPGBOptionsApp:
         if ws_stats['last_message_time']:
             seconds_since_last = (datetime.now() - ws_stats['last_message_time']).total_seconds()
             if seconds_since_last > 10:
-                timeout_str = f" 🟡 Sin datos {int(seconds_since_last)}s"
+                timeout_str = f" | 🟡 Sin datos {int(seconds_since_last)}s"
         
         # Build unified status line
         status = (
