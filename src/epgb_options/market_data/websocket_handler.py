@@ -201,6 +201,10 @@ class WebSocketHandler:
             self._update_options_data(symbol, update_df)
         elif self._is_caucion_symbol(symbol):
             self._update_cauciones_data(symbol, update_df)
+        elif self._is_futures_symbol(symbol):
+            # Futures are in everything_df but log separately for clarity
+            self._update_securities_data(symbol, update_df)
+            logger.debug(f"Futuro actualizado {symbol}: last={data_row['last']}, bid={data_row['bid']}, ask={data_row['ask']}")
         else:
             self._update_securities_data(symbol, update_df)
 
@@ -225,6 +229,29 @@ class WebSocketHandler:
         """Determina si el símbolo representa una caución (repo)."""
         # Las cauciones tienen formato "MERV - XMEV - PESOS - XD" donde X es la cantidad de días
         return 'PESOS' in symbol and symbol.split(' - ')[-1].endswith('D')
+    
+    def _is_futures_symbol(self, symbol: str) -> bool:
+        """
+        Determina si el símbolo representa un contrato de futuro.
+        
+        Los futuros se identifican por tener "/" en el símbolo (fecha de vencimiento)
+        y no contener "PESOS" (para distinguirlos de las cauciones).
+        
+        Args:
+            symbol: Símbolo a verificar
+            
+        Returns:
+            True si el símbolo es un futuro
+            
+        Examples:
+            - "DLR/FEB26" → True (futuro de dólar)
+            - "DLR/NOV25" → True (futuro de dólar)
+            - "MAI.ROS/MAR26" → True (futuro de maíz ROS)
+            - "ORO/ENE26" → True (futuro de oro)
+            - "MERV - XMEV - GGAL - 24hs" → False (acción)
+            - "MERV - XMEV - PESOS - 3D" → False (caución)
+        """
+        return '/' in symbol and 'PESOS' not in symbol
     
     def _update_options_data(self, symbol: str, update_df: pd.DataFrame):
         """Actualizar el DataFrame de opciones."""

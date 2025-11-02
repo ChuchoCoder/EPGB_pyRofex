@@ -40,7 +40,8 @@ class SymbolLoader:
         'cedears': 'G2:G500',      # CEDEARs: Columna G
         'letras': 'I2:I500',       # Letras: Columna I
         'ons': 'K2:K500',          # ONs: Columna K
-        'panel_general': 'M2:M500' # Panel General: Columna M
+        'panel_general': 'M2:M500', # Panel General: Columna M
+        'futuros': 'O2:O500'       # Futuros: Columna O
     }
     
     # Lista de cauciones (repos) predefinidas - generadas desde 1D hasta 32D
@@ -174,6 +175,15 @@ class SymbolLoader:
         """
         return self._load_securities_list('panel_general', 'Panel General')
     
+    def get_futuros_list(self) -> pd.DataFrame:
+        """
+        Cargar símbolos de futuros desde Excel.
+        
+        Returns:
+            pd.DataFrame: DataFrame con datos de futuros
+        """
+        return self._load_securities_list('futuros', 'Futuros')
+    
     def get_cauciones_list(self) -> pd.DataFrame:
         """
         Obtener lista predefinida de cauciones (repos).
@@ -305,6 +315,7 @@ class SymbolLoader:
                 'letras': self.get_letras_list(),
                 'ons': self.get_ons_list(),
                 'panel_general': self.get_panel_general_list(),
+                'futuros': self.get_futuros_list(),
                 'cauciones': self.get_cauciones_list()
             }
             
@@ -333,6 +344,7 @@ class SymbolLoader:
                 self.get_letras_list(),
                 self.get_ons_list(),
                 self.get_panel_general_list(),
+                self.get_futuros_list(),
                 self.get_cauciones_list()
             ]
             
