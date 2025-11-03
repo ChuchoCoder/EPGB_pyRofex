@@ -5,6 +5,7 @@ Idempotent upsert of executions to Excel Trades sheet.
 MUST use bulk range updates per Constitution II.
 """
 
+import warnings
 from datetime import datetime
 from typing import Dict
 
@@ -13,6 +14,9 @@ import xlwings as xw
 
 from ..config.excel_config import EXCEL_SHEET_TRADES, TRADES_COLUMNS
 from ..utils.logging import get_logger
+
+# Suppress pandas FutureWarning about unorderable types in merge
+warnings.filterwarnings('ignore', category=RuntimeWarning, message='.*unorderable.*')
 
 logger = get_logger(__name__)
 
@@ -46,6 +50,12 @@ class TradesUpserter:
             return {'inserted': 0, 'updated': 0, 'unchanged': 0}
         
         try:
+            # Check for duplicates in incoming data
+            if not new_executions_df.index.is_unique:
+                logger.warning(f"Incoming executions DataFrame has duplicate index values - deduplicating")
+                new_executions_df = new_executions_df[~new_executions_df.index.duplicated(keep='first')]
+                logger.info(f"After dedup: {len(new_executions_df)} unique executions to upsert")
+            
             # 1. Read existing trades (BULK READ)
             existing_df = self._read_existing_trades()
             
@@ -64,7 +74,11 @@ class TradesUpserter:
             return stats
             
         except Exception as e:
-            logger.error(f"Error in upsert_executions: {e}", exc_info=True)
+            error_msg = str(e)
+            if 'com_error' in str(type(e)) or '-2147352567' in error_msg:
+                logger.error(f"Excel COM error during upsert (Excel may be busy or protected): {e}")
+            else:
+                logger.error(f"Error in upsert_executions: {e}", exc_info=True)
             return {'inserted': 0, 'updated': 0, 'unchanged': 0, 'errors': 1}
     
     def _read_existing_trades(self) -> pd.DataFrame:
@@ -144,6 +158,15 @@ class TradesUpserter:
                 # Convert boolean
                 if 'Superseded' in df.columns:
                     df['Superseded'] = df['Superseded'].fillna(False).astype(bool)
+                
+                # Check for duplicates BEFORE setting index
+                duplicates_mask = df.duplicated(subset=['ExecutionID', 'OrderID', 'Account'], keep=False)
+                if duplicates_mask.any():
+                    num_duplicates = duplicates_mask.sum()
+                    logger.warning(f"Found {num_duplicates} duplicate rows in Excel - removing duplicates")
+                    # Keep only the first occurrence of each ExecutionID+OrderID+Account
+                    df = df.drop_duplicates(subset=['ExecutionID', 'OrderID', 'Account'], keep='first')
+                    logger.info(f"Removed duplicates, now have {len(df)} unique trades")
                 
                 # Set composite index
                 df.set_index(['ExecutionID', 'OrderID', 'Account'], inplace=True)
@@ -322,11 +345,20 @@ class TradesUpserter:
             end_row = num_rows + 1  # +1 for header row
             
             # Clear existing data first (from row 2 downward)
-            # Get max row to clear old data
-            used_range = self.sheet.used_range
-            if used_range.last_cell.row > 1:
-                clear_range = f'A2:{last_col_letter}{used_range.last_cell.row}'
-                self.sheet.range(clear_range).clear_contents()
+            # Get max row to clear old data - but be safe about it
+            try:
+                used_range = self.sheet.used_range
+                if used_range and used_range.last_cell.row > 1:
+                    # Only clear if there are more rows than we're about to write
+                    old_last_row = used_range.last_cell.row
+                    if old_last_row > end_row:
+                        # Clear extra rows beyond what we're writing
+                        clear_range = f'A{end_row + 1}:{last_col_letter}{old_last_row}'
+                        logger.debug(f"Clearing old data range: {clear_range}")
+                        self.sheet.range(clear_range).clear_contents()
+            except Exception as clear_error:
+                # If clearing fails, log it but continue - the bulk write will overwrite anyway
+                logger.warning(f"Could not clear old data (non-critical): {clear_error}")
             
             # SINGLE BULK WRITE
             target_range = f'A2:{last_col_letter}{end_row}'
