@@ -50,6 +50,13 @@ class TradesProcessor:
             if 'LastPx' in df.columns:
                 df['LastPx'] = pd.to_numeric(df['LastPx'], errors='coerce')
             
+            # CRITICAL: Ensure index columns are strings for consistent comparison
+            # This prevents type mismatches during merge operations
+            index_cols = ['ExecutionID', 'OrderID', 'Account']
+            for col in index_cols:
+                if col in df.columns:
+                    df[col] = df[col].astype(str)
+            
             # Sort by timestamp (handle out-of-order events)
             df.sort_values('TimestampUTC', inplace=True)
             
@@ -77,7 +84,7 @@ class TradesProcessor:
             # Set composite index
             df.set_index(['ExecutionID', 'OrderID', 'Account'], inplace=True)
             
-            logger.info(f"Processed {len(df)} executions")
+            logger.debug(f"Processed {len(df)} executions")
             return df
             
         except Exception as e:

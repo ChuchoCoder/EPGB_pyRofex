@@ -64,7 +64,7 @@ class pyRofexClient:
                 print("         PYROFEX_PASSWORD=tu_contraseña")
                 print("         PYROFEX_ACCOUNT=tu_cuenta")
                 print("      → O en src/epgb_options/config/pyrofex_config.py")
-                print("\n⚠️  Consejo de seguridad: ¡Nunca subas credenciales a git!")
+                print("\n Consejo de seguridad: ¡Nunca subas credenciales a git!")
                 print("="*70 + "\n")
                 
                 logger.error(f"🔐 Fallo de autenticación: {error_msg}")

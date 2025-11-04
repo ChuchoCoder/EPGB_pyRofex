@@ -51,7 +51,7 @@ def test_cache_performance():
         print(f"✅ Loaded {cache_data['count']} instruments in {elapsed:.2f}ms")
         print(f"   Source: {'Memory' if stats['memory_cache_active'] else 'File'}")
     else:
-        print("⚠️  No cache available - would fetch from API")
+        print(" No cache available - would fetch from API")
     
     # Test 2: Memory cache lookups (should be very fast)
     print("\n🔍 Test 2: Memory Cache Lookups (O(1) Dictionary Access)")

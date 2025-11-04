@@ -24,15 +24,17 @@ logger = get_logger(__name__)
 class TradesUpserter:
     """Handles upsert operations for Trades sheet."""
     
-    def __init__(self, workbook: xw.Book):
+    def __init__(self, workbook: xw.Book, status_logger=None):
         """
         Initialize upserter.
         
         Args:
             workbook: xlwings Workbook object
+            status_logger: Optional ProgressLogger to finish before warnings
         """
         self.workbook = workbook
         self.sheet = self._get_or_create_trades_sheet()
+        self.status_logger = status_logger
     
     def upsert_executions(self, new_executions_df: pd.DataFrame) -> Dict[str, int]:
         """
@@ -46,15 +48,17 @@ class TradesUpserter:
             Stats dict: {'inserted': int, 'updated': int, 'unchanged': int}
         """
         if new_executions_df.empty:
-            logger.info("No executions to upsert")
+            logger.debug("No executions to upsert")
             return {'inserted': 0, 'updated': 0, 'unchanged': 0}
         
         try:
             # Check for duplicates in incoming data
             if not new_executions_df.index.is_unique:
+                if self.status_logger:
+                    self.status_logger.finish()
                 logger.warning(f"Incoming executions DataFrame has duplicate index values - deduplicating")
                 new_executions_df = new_executions_df[~new_executions_df.index.duplicated(keep='first')]
-                logger.info(f"After dedup: {len(new_executions_df)} unique executions to upsert")
+                logger.debug(f"After dedup: {len(new_executions_df)} unique executions to upsert")
             
             # 1. Read existing trades (BULK READ)
             existing_df = self._read_existing_trades()
@@ -70,7 +74,8 @@ class TradesUpserter:
             
             # 5. Calculate stats
             stats = self._calculate_stats(merged)
-            logger.info(f"Upsert complete: {stats}")
+            logger.debug(f"Upsert complete: {stats}")
+            
             return stats
             
         except Exception as e:
@@ -159,17 +164,38 @@ class TradesUpserter:
                 if 'Superseded' in df.columns:
                     df['Superseded'] = df['Superseded'].fillna(False).astype(bool)
                 
+                # CRITICAL: Convert index columns to strings for consistent comparison
+                # Excel may read Account as numeric, causing merge failures
+                for col in ['ExecutionID', 'OrderID']:
+                    if col in df.columns:
+                        df[col] = df[col].astype(str)
+                
+                # Account needs special handling: Excel stores numbers as floats (17825.0)
+                # Convert to numeric -> int -> string to remove .0 suffix for consistency with API
+                if 'Account' in df.columns:
+                    df['Account'] = pd.to_numeric(df['Account'], errors='coerce').fillna(0).astype(int).astype(str)
+                
+                # Verify required columns exist before proceeding
+                required_index_cols = ['ExecutionID', 'OrderID', 'Account']
+                missing_cols = [col for col in required_index_cols if col not in df.columns]
+                if missing_cols:
+                    logger.error(f"Missing required index columns in Excel data: {missing_cols}")
+                    return pd.DataFrame(columns=list(TRADES_COLUMNS.keys()))
+                
                 # Check for duplicates BEFORE setting index
-                duplicates_mask = df.duplicated(subset=['ExecutionID', 'OrderID', 'Account'], keep=False)
+                duplicates_mask = df.duplicated(subset=required_index_cols, keep=False)
                 if duplicates_mask.any():
                     num_duplicates = duplicates_mask.sum()
-                    logger.warning(f"Found {num_duplicates} duplicate rows in Excel - removing duplicates")
+                    if self.status_logger:
+                        self.status_logger.finish()
+                    logger.warning(f"🟨 Found {num_duplicates} duplicate rows in Excel - removing duplicates")
+                    
                     # Keep only the first occurrence of each ExecutionID+OrderID+Account
-                    df = df.drop_duplicates(subset=['ExecutionID', 'OrderID', 'Account'], keep='first')
-                    logger.info(f"Removed duplicates, now have {len(df)} unique trades")
+                    df = df.drop_duplicates(subset=required_index_cols, keep='first')
+                    logger.debug(f"Removed duplicates, now have {len(df)} unique trades")
                 
                 # Set composite index
-                df.set_index(['ExecutionID', 'OrderID', 'Account'], inplace=True)
+                df.set_index(required_index_cols, inplace=True)
             
             logger.debug(f"Read {len(df)} existing trades")
             return df
@@ -244,6 +270,10 @@ class TradesUpserter:
                         final_row[col] = False
                     elif col == 'UpdateCount':
                         final_row[col] = 0
+                    elif col in ['ExecutionID', 'OrderID', 'Account']:
+                        # These are index values, get from idx tuple
+                        index_pos = ['ExecutionID', 'OrderID', 'Account'].index(col)
+                        final_row[col] = idx[index_pos]
                     else:
                         # Get from new data
                         new_col = f"{col}_new" if f"{col}_new" in row.index else col
@@ -263,9 +293,13 @@ class TradesUpserter:
                 for col in TRADES_COLUMNS.keys():
                     if col in ['PreviousFilledQty', 'PreviousTimestampUTC', 'Superseded', 'CancelReason', 'UpdateCount']:
                         continue  # Handle separately
-                    
-                    new_col = f"{col}_new" if f"{col}_new" in row.index else col
-                    final_row[col] = row.get(new_col, row.get(f"{col}_old", row.get(col)))
+                    elif col in ['ExecutionID', 'OrderID', 'Account']:
+                        # These are index values, get from idx tuple
+                        index_pos = ['ExecutionID', 'OrderID', 'Account'].index(col)
+                        final_row[col] = idx[index_pos]
+                    else:
+                        new_col = f"{col}_new" if f"{col}_new" in row.index else col
+                        final_row[col] = row.get(new_col, row.get(f"{col}_old", row.get(col)))
                 
                 # Populate audit columns
                 if pd.notna(old_filled_qty) and pd.notna(new_filled_qty) and old_filled_qty != new_filled_qty:
@@ -292,13 +326,13 @@ class TradesUpserter:
                 # Existing row with no update - preserve as is
                 final_row = {}
                 for col in TRADES_COLUMNS.keys():
-                    old_col = f"{col}_old" if f"{col}_old" in row.index else col
-                    final_row[col] = row.get(old_col, row.get(col))
-            
-            # Add index values back
-            final_row['ExecutionID'] = idx[0]
-            final_row['OrderID'] = idx[1]
-            final_row['Account'] = idx[2]
+                    if col in ['ExecutionID', 'OrderID', 'Account']:
+                        # These are index values, get from idx tuple
+                        index_pos = ['ExecutionID', 'OrderID', 'Account'].index(col)
+                        final_row[col] = idx[index_pos]
+                    else:
+                        old_col = f"{col}_old" if f"{col}_old" in row.index else col
+                        final_row[col] = row.get(old_col, row.get(col))
             
             final_rows.append(final_row)
         
@@ -309,6 +343,8 @@ class TradesUpserter:
         column_order = list(TRADES_COLUMNS.keys())
         final_df = final_df[column_order]
         
+        # DataFrame is returned with ExecutionID, OrderID, Account as regular columns
+        # (not as index) so they get written to Excel properly
         return final_df
     
     def _write_bulk_to_excel(self, df: pd.DataFrame):
@@ -364,7 +400,7 @@ class TradesUpserter:
             target_range = f'A2:{last_col_letter}{end_row}'
             self.sheet.range(target_range).value = data
             
-            logger.info(f"✅ Bulk write: {num_rows} rows to Excel ({target_range})")
+            logger.debug(f"✅ Bulk write: {num_rows} rows to Excel ({target_range})")
             
         except Exception as e:
             logger.error(f"Error in bulk write: {e}", exc_info=True)
@@ -396,11 +432,22 @@ class TradesUpserter:
         try:
             sheet = self.workbook.sheets[EXCEL_SHEET_TRADES]
             logger.debug(f"Trades sheet '{EXCEL_SHEET_TRADES}' found")
+            
+            # Verify headers exist, if not create them
+            try:
+                first_row = sheet.range('A1').expand('right').value
+                if not first_row or (isinstance(first_row, list) and not first_row[0]):
+                    logger.info(f"Trades sheet exists but has no headers - initializing")
+                    self._create_headers(sheet)
+            except Exception as e:
+                logger.warning(f"Could not verify headers: {e} - recreating")
+                self._create_headers(sheet)
+                
         except Exception:
             # Create sheet
             sheet = self.workbook.sheets.add(EXCEL_SHEET_TRADES)
             self._create_headers(sheet)
-            logger.info(f"Created new Trades sheet: '{EXCEL_SHEET_TRADES}'")
+            logger.debug(f"Created new Trades sheet: '{EXCEL_SHEET_TRADES}'")
         
         return sheet
     
@@ -410,3 +457,16 @@ class TradesUpserter:
         sheet.range('A1').value = headers
         sheet.range(f'A1:{list(TRADES_COLUMNS.values())[-1]}1').font.bold = True
         logger.debug("Trades sheet headers created")
+    
+    def clear_all_trades(self):
+        """Clear all data from Trades sheet (keep headers). Use for debugging only."""
+        try:
+            # Clear all data rows but keep headers
+            used_range = self.sheet.used_range
+            if used_range and used_range.last_cell.row > 1:
+                last_col = list(TRADES_COLUMNS.values())[-1]
+                clear_range = f'A2:{last_col}{used_range.last_cell.row}'
+                self.sheet.range(clear_range).clear_contents()
+                logger.info(f"Cleared all trades data from sheet (kept headers)")
+        except Exception as e:
+            logger.error(f"Error clearing trades: {e}", exc_info=True)

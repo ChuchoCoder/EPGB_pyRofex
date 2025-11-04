@@ -4,7 +4,7 @@ Módulo de Configuración de API de pyRofex
 Este módulo contiene todos los valores de configuración relacionados a la API de pyRofex.
 Las variables de entorno tienen prioridad sobre estos valores por defecto.
 
-⚠️  ADVERTENCIA CRÍTICA DE SEGURIDAD ⚠️
+ ADVERTENCIA CRÍTICA DE SEGURIDAD 
 =====================================
 Este archivo contiene credenciales sensibles de API almacenadas como TEXTO PLANO.
 

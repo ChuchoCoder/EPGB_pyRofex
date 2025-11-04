@@ -65,7 +65,10 @@ class EPGBOptionsApp:
         # Orders/trades statistics
         self.orders_stats = {
             'total_filled': 0,
-            'last_sync_count': 0
+            'last_sync_count': 0,
+            'last_sync_processed': 0,     # Executions processed in last sync
+            'last_sync_inserted': 0,      # New trades inserted
+            'last_sync_updated': 0        # Existing trades updated
         }
         
         # Unified single-line status display
@@ -119,7 +122,7 @@ class EPGBOptionsApp:
                 logger.info("Trades sync está habilitado, inicializando componentes...")
                 try:
                     if not self._initialize_trades_components():
-                        logger.warning("⚠️  No se pudieron inicializar componentes de Trades, continuando sin sincronización de trades")
+                        logger.warning(" No se pudieron inicializar componentes de Trades, continuando sin sincronización de trades")
                 except Exception as e:
                     logger.error(f"❌ Error al inicializar Trades: {e}", exc_info=True)
             else:
@@ -256,7 +259,7 @@ class EPGBOptionsApp:
                 )
                 
                 if invalid_options:
-                    logger.warning(f"⚠️  {len(invalid_options)} opciones inválidas encontradas en Excel:")
+                    logger.warning(f" {len(invalid_options)} opciones inválidas encontradas en Excel:")
                     for symbol in invalid_options[:10]:  # Mostrar primeras 10
                         logger.warning(f"    - {symbol}")
                     if len(invalid_options) > 10:
@@ -275,7 +278,7 @@ class EPGBOptionsApp:
                 )
                 
                 if invalid_securities:
-                    logger.warning(f"⚠️  {len(invalid_securities)} valores inválidos encontrados en Excel:")
+                    logger.warning(f" {len(invalid_securities)} valores inválidos encontrados en Excel:")
                     for symbol in invalid_securities[:10]:
                         logger.warning(f"    - {symbol}")
                     if len(invalid_securities) > 10:
@@ -326,7 +329,7 @@ class EPGBOptionsApp:
             total_valid = len(self.options_df) + len(self.everything_df) + len(self.cauciones_df)
             
             if total_invalid > 0:
-                logger.warning(f"⚠️  Total: {total_invalid} símbolos inválidos removidos del Excel")
+                logger.warning(f" Total: {total_invalid} símbolos inválidos removidos del Excel")
             
             logger.info(f"✅ {total_valid} símbolos válidos listos para suscripción")
             
@@ -351,7 +354,7 @@ class EPGBOptionsApp:
                 print("\n" + "="*70)
                 print("\033[91m🛑 FALLO DE INICIALIZACIÓN - La aplicación no puede continuar\033[0m")
                 print("="*70)
-                print("\033[91m⚠️  El cliente de la API PyRofex falló al inicializar\033[0m")
+                print("\033[91m El cliente de la API PyRofex falló al inicializar\033[0m")
                 print("\n📋 Qué significa esto:")
                 print("   • La aplicación no puede conectarse a la API de datos de mercado de PyRofex")
                 print("   • Causa más probable: Fallo de autenticación (credenciales incorrectas)")
@@ -378,7 +381,7 @@ class EPGBOptionsApp:
             logger.info(f"📊 Caché de instrumentos: {cache_stats['total_instruments']} instrumentos, {cache_stats['total_options']} opciones")
             
             if cache_stats['total_options'] == 0:
-                logger.warning("⚠️  No se encontraron opciones en el caché de instrumentos")
+                logger.warning(" No se encontraron opciones en el caché de instrumentos")
             
             # Inicializar manejador de WebSocket con caché de instrumentos compartido (ya poblado)
             # Nota: set_data_references será llamado después de cargar símbolos desde Excel
@@ -413,12 +416,12 @@ class EPGBOptionsApp:
             # Initialize trades processor
             self.trades_processor = TradesProcessor()
             
-            # Initialize trades upserter with workbook
+            # Initialize trades upserter with workbook and status logger
             if not self.workbook_manager or not self.workbook_manager.workbook:
                 logger.error("Workbook manager no disponible para trades upserter")
                 return False
             
-            self.trades_upserter = TradesUpserter(self.workbook_manager.workbook)
+            self.trades_upserter = TradesUpserter(self.workbook_manager.workbook, self._status_logger)
             
             # Initialize execution fetcher
             self.execution_fetcher = ExecutionFetcher(self.api_client)
@@ -479,9 +482,9 @@ class EPGBOptionsApp:
                 order_count = len(filled_orders)
                 logger.debug(f"Procesando {order_count} órdenes ejecutadas para upsert...")
                 
-                # Update stats
+                # Update stats - set to current count, not accumulate
                 self.orders_stats['last_sync_count'] = order_count
-                self.orders_stats['total_filled'] += order_count
+                self.orders_stats['total_filled'] = order_count
                 
                 # Process executions
                 df = self.trades_processor.process_executions(filled_orders)
@@ -489,11 +492,23 @@ class EPGBOptionsApp:
                 if not df.empty:
                     # Upsert to Excel
                     stats = self.trades_upserter.upsert_executions(df)
+                    
+                    # Capture stats for unified status line
+                    self.orders_stats['last_sync_processed'] = len(df)
+                    self.orders_stats['last_sync_inserted'] = stats.get('inserted', 0)
+                    self.orders_stats['last_sync_updated'] = stats.get('updated', 0)
+                    
                     logger.debug(f"Sincronización completa: {stats}")
                 else:
                     logger.debug("No se pudieron procesar órdenes ejecutadas en DataFrame")
+                    self.orders_stats['last_sync_processed'] = 0
+                    self.orders_stats['last_sync_inserted'] = 0
+                    self.orders_stats['last_sync_updated'] = 0
             else:
                 self.orders_stats['last_sync_count'] = 0
+                self.orders_stats['last_sync_processed'] = 0
+                self.orders_stats['last_sync_inserted'] = 0
+                self.orders_stats['last_sync_updated'] = 0
                 logger.debug("No hay órdenes ejecutadas para sincronizar")
         except Exception as e:
             logger.error(f"Error en sincronización de órdenes: {e}", exc_info=True)
@@ -676,6 +691,23 @@ class EPGBOptionsApp:
         if TRADES_SYNC_ENABLED:
             orders_count = self.orders_stats['total_filled']
             orders_str = f" | 📝 {orders_count} orders"
+            
+            # Add execution details if there were any in last sync
+            last_processed = self.orders_stats.get('last_sync_processed', 0)
+            if last_processed > 0:
+                last_inserted = self.orders_stats.get('last_sync_inserted', 0)
+                last_updated = self.orders_stats.get('last_sync_updated', 0)
+                
+                # Build compact execution stats string
+                exec_parts = []
+                if last_inserted > 0:
+                    exec_parts.append(f"+{last_inserted} ins")
+                if last_updated > 0:
+                    exec_parts.append(f"~{last_updated} upd")
+                
+                if exec_parts:
+                    exec_str = ", ".join(exec_parts)
+                    orders_str += f" | ✅ {last_processed} exec ({exec_str})"
         
         # Market data timeout warning
         timeout_str = ""
