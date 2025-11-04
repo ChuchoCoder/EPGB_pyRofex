@@ -278,7 +278,7 @@ class EPGBOptionsApp:
                 )
                 
                 if invalid_securities:
-                    logger.warning(f" {len(invalid_securities)} valores inválidos encontrados en Excel:")
+                    logger.warning(f"{len(invalid_securities)} valores inválidos encontrados en Excel:")
                     for symbol in invalid_securities[:10]:
                         logger.warning(f"    - {symbol}")
                     if len(invalid_securities) > 10:
