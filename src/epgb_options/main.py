@@ -541,7 +541,6 @@ class EPGBOptionsApp:
         last_message_time = stats.get('last_message_time')
         
         if last_message_time:
-            elapsed = (datetime.now() - last_message_time).total_seconds()
             
             # Warning if no data for 10+ seconds - but DON'T log it here
             # The unified status line in _update_unified_status() will show the timeout
