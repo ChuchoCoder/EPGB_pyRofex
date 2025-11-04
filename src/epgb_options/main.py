@@ -546,7 +546,6 @@ class EPGBOptionsApp:
             # Warning if no data for 10+ seconds - but DON'T log it here
             # The unified status line in _update_unified_status() will show the timeout
             # This prevents creating new log lines
-            pass
     
     def _on_data_update(self, symbol: str, message: Dict[str, Any]):
         """
