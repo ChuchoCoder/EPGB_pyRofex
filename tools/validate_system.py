@@ -160,7 +160,7 @@ def main():
         print("\n🎉 New package structure is working correctly!")
         print("✅ Ready for production use with epgb-options command")
     else:
-        print("\n Some tests failed - check the details above")
+        print("\nSome tests failed - check the details above")
         print("💡 Most failures are expected during initial setup (credentials, etc.)")
     
     print(f"\n🕐 Completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
