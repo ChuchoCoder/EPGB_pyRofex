@@ -354,7 +354,7 @@ class EPGBOptionsApp:
                 print("\n" + "="*70)
                 print("\033[91m🛑 FALLO DE INICIALIZACIÓN - La aplicación no puede continuar\033[0m")
                 print("="*70)
-                print("\033[91m El cliente de la API PyRofex falló al inicializar\033[0m")
+                print("\033[91mEl cliente de la API PyRofex falló al inicializar\033[0m")
                 print("\n📋 Qué significa esto:")
                 print("   • La aplicación no puede conectarse a la API de datos de mercado de PyRofex")
                 print("   • Causa más probable: Fallo de autenticación (credenciales incorrectas)")
