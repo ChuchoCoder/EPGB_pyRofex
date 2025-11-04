@@ -259,7 +259,7 @@ class EPGBOptionsApp:
                 )
                 
                 if invalid_options:
-                    logger.warning(f" {len(invalid_options)} opciones inválidas encontradas en Excel:")
+                    logger.warning(f"{len(invalid_options)} opciones inválidas encontradas en Excel:")
                     for symbol in invalid_options[:10]:  # Mostrar primeras 10
                         logger.warning(f"    - {symbol}")
                     if len(invalid_options) > 10:
