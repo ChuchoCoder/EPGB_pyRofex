@@ -381,7 +381,7 @@ class EPGBOptionsApp:
             logger.info(f"📊 Caché de instrumentos: {cache_stats['total_instruments']} instrumentos, {cache_stats['total_options']} opciones")
             
             if cache_stats['total_options'] == 0:
-                logger.warning(" No se encontraron opciones en el caché de instrumentos")
+                logger.warning("No se encontraron opciones en el caché de instrumentos")
             
             # Inicializar manejador de WebSocket con caché de instrumentos compartido (ya poblado)
             # Nota: set_data_references será llamado después de cargar símbolos desde Excel
