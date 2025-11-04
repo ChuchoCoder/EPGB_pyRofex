@@ -329,7 +329,7 @@ class EPGBOptionsApp:
             total_valid = len(self.options_df) + len(self.everything_df) + len(self.cauciones_df)
             
             if total_invalid > 0:
-                logger.warning(f" Total: {total_invalid} símbolos inválidos removidos del Excel")
+                logger.warning(f"Total: {total_invalid} símbolos inválidos removidos del Excel")
             
             logger.info(f"✅ {total_valid} símbolos válidos listos para suscripción")
             
