@@ -122,7 +122,7 @@ class EPGBOptionsApp:
                 logger.info("Trades sync está habilitado, inicializando componentes...")
                 try:
                     if not self._initialize_trades_components():
-                        logger.warning(" No se pudieron inicializar componentes de Trades, continuando sin sincronización de trades")
+                        logger.warning("No se pudieron inicializar componentes de Trades, continuando sin sincronización de trades")
                 except Exception as e:
                     logger.error(f"❌ Error al inicializar Trades: {e}", exc_info=True)
             else:
