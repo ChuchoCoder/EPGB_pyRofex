@@ -28,8 +28,8 @@ def test_cache_performance():
     test_symbols = [
         "MERV - XMEV - GGAL - 24hs",
         "MERV - XMEV - YPFD - 24hs",
-        "MERV - XMEV - GFGV78806O - 24hs",  # Option
-        "MERV - XMEV - GFGC47566O - 24hs",  # Option
+        "MERV - XMEV - GFGV78806O - CI",  # Option (CI settlement)
+        "MERV - XMEV - GFGC47566O - CI",  # Option (CI settlement)
         "MERV - XMEV - ALUA - 24hs",
     ]
     

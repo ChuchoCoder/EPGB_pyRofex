@@ -88,7 +88,8 @@ class SymbolLoader:
                 return pd.DataFrame()
             
             # Transformar símbolos para compatibilidad con pyRofex
-            transformed_options = [transform_symbol_for_pyrofex(opt) for opt in valid_options]
+            # MERV options now use CI settlement period instead of 24hs
+            transformed_options = [transform_symbol_for_pyrofex(opt, " - CI") for opt in valid_options]
             
             # Crear DataFrame con columnas necesarias para opciones
             # IMPORTANTE: Incluir TODAS las columnas que el WebSocket handler actualiza

@@ -216,19 +216,19 @@ class SheetOperations:
                         has_suffix = any(full_symbol.endswith(suffix) for suffix in 
                                        [" - 24hs", " - 48hs", " - 72hs", " - CI", " - T0", " - T1", " - T2"])
                         
-                        # If no suffix present and not a caucion (PESOS - XD), add " - 24hs"
-                        # This handles options that had their suffix stripped for display
+                        # If no suffix present and not a caucion (PESOS - XD), add appropriate suffix
+                        # This handles symbols that had their suffix stripped for display
                         if not has_suffix and "PESOS" not in full_symbol:
                             # OPTIMIZATION: Check if symbol (with suffix) exists in options set
                             # The options_symbols_set contains full symbols WITH suffix, so we need to check
-                            # if adding the suffix would match an option
-                            full_symbol_with_suffix = f"{full_symbol} - 24hs"
-                            is_option = full_symbol_with_suffix in options_symbols_set
+                            # if adding the CI suffix would match an option (options use CI settlement now)
+                            full_symbol_with_ci = f"{full_symbol} - CI"
+                            is_option = full_symbol_with_ci in options_symbols_set
                             
-                            # Add suffix for all MERV securities (stocks, bonds, options, etc.)
-                            # This maintains consistency with market data updates
-                            if is_option or not any(x in full_symbol for x in ['/', 'I.']):
-                                full_symbol = full_symbol_with_suffix
+                            if is_option:
+                                full_symbol = full_symbol_with_ci
+                            elif not any(x in full_symbol for x in ['/', 'I.']):
+                                full_symbol = f"{full_symbol} - 24hs"
                         
                         # Check for duplicates
                         if full_symbol in self._symbol_row_cache:
@@ -817,11 +817,13 @@ class SheetOperations:
                                    [" - 24hs", " - 48hs", " - 72hs", " - CI", " - T0", " - T1", " - T2"])
                     
                     if not has_suffix and "PESOS" not in full_symbol:
-                        full_symbol_with_suffix = f"{full_symbol} - 24hs"
-                        is_option = full_symbol_with_suffix in options_symbols_set
+                        full_symbol_with_ci = f"{full_symbol} - CI"
+                        is_option = full_symbol_with_ci in options_symbols_set
                         
-                        if is_option or not any(x in full_symbol for x in ['/', 'I.']):
-                            full_symbol = full_symbol_with_suffix
+                        if is_option:
+                            full_symbol = full_symbol_with_ci
+                        elif not any(x in full_symbol for x in ['/', 'I.']):
+                            full_symbol = f"{full_symbol} - 24hs"
                     
                     # Check if duplicate
                     if full_symbol in seen_symbols:

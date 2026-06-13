@@ -22,13 +22,13 @@ def test_option_detection():
     
     # Test symbols from the log
     test_symbols = {
-        # Options (should return True)
-        "MERV - XMEV - GFGV38566O - 24hs": True,
-        "MERV - XMEV - GFGV88566O - 24hs": True,
-        "MERV - XMEV - GFGV78806O - 24hs": True,
-        "MERV - XMEV - GFGC47566O - 24hs": True,
-        "MERV - XMEV - GFGC67566O - 24hs": True,
-        "MERV - XMEV - GFGC97354O - 24hs": True,
+        # Options (should return True) - MERV options now use CI settlement
+        "MERV - XMEV - GFGV38566O - CI": True,
+        "MERV - XMEV - GFGV88566O - CI": True,
+        "MERV - XMEV - GFGV78806O - CI": True,
+        "MERV - XMEV - GFGC47566O - CI": True,
+        "MERV - XMEV - GFGC67566O - CI": True,
+        "MERV - XMEV - GFGC97354O - CI": True,
         
         # Securities (should return False)
         "MERV - XMEV - GGAL - 24hs": False,

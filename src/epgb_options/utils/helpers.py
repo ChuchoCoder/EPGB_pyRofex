@@ -53,7 +53,7 @@ def safe_float_conversion(value: Any, default: float = 0.0) -> float:
         return default
 
 
-def transform_symbol_for_pyrofex(raw_symbol: str) -> str:
+def transform_symbol_for_pyrofex(raw_symbol: str, default_suffix: str = " - 24hs") -> str:
     """
     Transform symbols for pyRofex compatibility.
     
@@ -62,20 +62,24 @@ def transform_symbol_for_pyrofex(raw_symbol: str) -> str:
     - Do NOT add prefix to: options, futures (ROS/DLR/ORO/WTI/etc), most indices
     - Exception: I.MERVAL gets MERV prefix, other I.* indices don't
     - Replace " - spot" suffix with " - CI"
-    - Add " - 24hs" as default suffix ONLY for MERV securities without suffix
+    - Add default_suffix (default " - 24hs") ONLY for MERV securities without suffix.
+      Pass " - CI" for MERV options (calls/puts) since they now use CI settlement.
     - Preserve existing suffixes (" - 24hs", " - 48hs", " - 72hs", " - CI", etc.)
     
     Args:
         raw_symbol: Raw symbol from Excel
+        default_suffix: Default settlement suffix to add when none is present
+                        (" - 24hs" for stocks/bonds, " - CI" for MERV options)
         
     Returns:
         str: Transformed symbol for pyRofex
         
     Examples:
         MERV Securities (with prefix):
-        - "YPFD" → "MERV - XMEV - YPFD - 24hs" (prefix + default suffix)
+        - "YPFD" → "MERV - XMEV - YPFD - 24hs" (prefix + default 24hs suffix)
         - "YPFD - 24hs" → "MERV - XMEV - YPFD - 24hs" (prefix + preserved suffix)
         - "GGAL - spot" → "MERV - XMEV - GGAL - CI" (prefix + spot→CI conversion)
+        - "GFGC7000AG" (call option) → "MERV - XMEV - GFGC7000AG - CI" (with default_suffix=" - CI")
         - "I.MERVAL" → "MERV - XMEV - I.MERVAL" (special case: MERVAL index gets prefix)
         
         Non-MERV Securities (NO prefix):
@@ -106,7 +110,7 @@ def transform_symbol_for_pyrofex(raw_symbol: str) -> str:
     if needs_prefix:
         needs_default_suffix = _should_add_default_suffix(symbol)
         if needs_default_suffix:
-            symbol = f"{symbol} - 24hs"
+            symbol = f"{symbol}{default_suffix}"
         
         # Add MERV prefix
         return f"MERV - XMEV - {symbol}"
@@ -267,9 +271,12 @@ def clean_symbol_for_display(symbol: str, is_option: bool = False) -> str:
     if symbol.startswith(prefix):
         result = symbol[len(prefix):]
     
-    # For options, also remove " - 24hs" suffix
-    if is_option and result.endswith(" - 24hs"):
-        result = result[:-len(" - 24hs")]
+    # For options, remove settlement suffix for cleaner display
+    if is_option:
+        if result.endswith(" - CI"):
+            result = result[:-len(" - CI")]
+        elif result.endswith(" - 24hs"):
+            result = result[:-len(" - 24hs")]
     
     return result
 
